@@ -1,0 +1,72 @@
+{
+  "name": "Sistema Vendas CEASA",
+  "short_name": "Vendas CEASA",
+  "description": "Sistema de Controle de Pedidos de Frutas, Legumes e Verduras - CEASA",
+  "theme_color": "#22c55e",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/",
+  "id": "/",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity", "food"],
+  "shortcuts": [
+    {
+      "name": "Nova Venda",
+      "short_name": "Venda",
+      "description": "Criar nova venda rapidamente",
+      "url": "/vendas",
+      "icons": [
+        {
+          "src": "pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Início",
+      "description": "Ver dashboard principal",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Separação",
+      "short_name": "Separar",
+      "description": "Separar pedidos",
+      "url": "/separacao",
+      "icons": [
+        {
+          "src": "pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
