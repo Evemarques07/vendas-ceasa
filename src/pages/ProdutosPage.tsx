@@ -1,18 +1,69 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Loading } from "@/components/Loading";
-import { produtosService, testeConectividade } from "@/services/api";
-import type { Produto, FormProduto } from "@/types";
+import { produtosService } from "@/services/api";
+import type {
+  Produto as ProdutoOrig,
+  FormProduto as FormProdutoOrig,
+} from "@/types";
+import {
+  FiPlus,
+  FiRefreshCw,
+  FiSearch,
+  FiX,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiPackage,
+  FiTrash2,
+  FiEdit,
+  FiImage,
+} from "react-icons/fi"; // Usando react-icons para ícones
+
+// Componente para notificações (toast)
+type NotificationProps = {
+  message: string;
+  type: "success" | "error";
+  onDismiss: () => void;
+};
+
+const Notification = ({ message, type, onDismiss }: NotificationProps) => (
+  <div
+    className={`fixed top-5 right-5 z-[100] flex items-center gap-4 rounded-lg bg-white p-4 shadow-lg ring-1 ring-black ring-opacity-5 transition-transform transform ${
+      type === "success" ? "text-green-700" : "text-red-700"
+    }`}
+  >
+    {type === "success" ? (
+      <FiCheckCircle className="h-6 w-6" />
+    ) : (
+      <FiAlertCircle className="h-6 w-6" />
+    )}
+    <p className="font-medium">{message}</p>
+    <button onClick={onDismiss} className="text-gray-400 hover:text-gray-600">
+      <FiX />
+    </button>
+  </div>
+);
 
 export function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloading, setReloading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
 
   // Estado do formulário
+  // Ajuste de tipos locais para refletir imagem como string
+  type Produto = Omit<ProdutoOrig, "imagem"> & { imagem?: string };
+  type FormProduto = Omit<FormProdutoOrig, "imagem"> & {
+    imagem?: string | undefined;
+  };
+
   const [formData, setFormData] = useState<FormProduto>({
     nome: "",
     descricao: "",
@@ -20,101 +71,82 @@ export function ProdutosPage() {
     tipo_medida: "kg",
     estoque_minimo: 0,
     ativo: true,
-    imagem: undefined,
+    imagem: "",
   });
-
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    carregarProdutos();
-  }, []);
+  const showNotification = (message: string, type: "success" | "error") => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 5000); // Auto-dismiss after 5s
+  };
 
-  const carregarProdutos = async () => {
+  const carregarProdutos = useCallback(async () => {
     try {
       console.log("=== CARREGANDO PRODUTOS ===");
       setLoading(true);
-
-      // Testar conectividade primeiro
-      const conectado = await testeConectividade.verificarConexao();
-      if (!conectado) {
-        console.error("Backend não está respondendo");
-        alert(
-          "❌ Erro: Backend não está respondendo. Verifique se o servidor está rodando."
-        );
-        setProdutos([]);
-        return;
-      }
-
       const resultado = await produtosService.listar();
-      console.log("Resultado da API:", resultado);
       setProdutos(resultado.produtos || []);
-      console.log("Produtos carregados:", resultado.produtos?.length || 0);
-
-      if (!resultado.produtos || resultado.produtos.length === 0) {
-        console.warn("Nenhum produto encontrado");
-      }
     } catch (error) {
-      console.error("=== ERRO AO CARREGAR PRODUTOS ===");
-      console.error("Erro ao carregar produtos:", error);
-
-      // Mostrar erro específico para o usuário
-      if (error instanceof Error) {
-        alert(`❌ Erro ao carregar produtos: ${error.message}`);
-      } else {
-        alert(
-          "❌ Erro desconhecido ao carregar produtos. Verifique o console para mais detalhes."
-        );
-      }
-
+      console.error("=== ERRO AO CARREGAR PRODUTOS ===", error);
+      showNotification(
+        "Falha ao carregar produtos. Verifique a conexão com a API.",
+        "error"
+      );
       setProdutos([]);
     } finally {
       setLoading(false);
+      setReloading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    carregarProdutos();
+  }, [carregarProdutos]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validações do frontend - seguindo a documentação da API
-    if (!formData.nome.trim()) {
-      alert("Nome do produto é obrigatório");
-      return;
-    }
-
-    if (!formData.preco_venda || formData.preco_venda <= 0) {
-      alert("Preço de venda deve ser maior que zero");
-      return;
-    }
-
-    if (!formData.tipo_medida) {
-      alert("Tipo de medida é obrigatório");
-      return;
-    }
-
-    if (formData.estoque_minimo === undefined || formData.estoque_minimo < 0) {
-      alert("Estoque mínimo deve ser maior ou igual a zero");
+    if (
+      !formData.nome.trim() ||
+      !formData.preco_venda ||
+      !formData.tipo_medida
+    ) {
+      showNotification("Preencha todos os campos obrigatórios.", "error");
       return;
     }
 
     try {
-      console.log("Dados do formulário:", formData);
-
+      const action = editingProduto ? "atualizado" : "cadastrado";
       if (editingProduto) {
-        await produtosService.atualizar(editingProduto.id, formData);
+        // Atualiza dados principais (exceto imagem)
+        await produtosService.atualizar(editingProduto.id, {
+          ...formData,
+          imagem: undefined, // Não enviar imagem no PUT principal
+        });
+        // Se a imagem foi alterada e não está vazia, atualiza via endpoint próprio
+        if (
+          formData.imagem &&
+          formData.imagem.trim() !== "" &&
+          formData.imagem !== editingProduto.imagem
+        ) {
+          await produtosService.atualizarImagem(
+            editingProduto.id,
+            formData.imagem
+          );
+        }
       } else {
-        await produtosService.criar(formData);
+        // Só envia o campo imagem se houver URL preenchida
+        const dadosParaCriar = { ...formData };
+        if (!formData.imagem || formData.imagem.trim() === "") {
+          delete (dadosParaCriar as any).imagem;
+        }
+        await produtosService.criar(dadosParaCriar as any);
       }
+      showNotification(`Produto ${action} com sucesso!`, "success");
       await carregarProdutos();
       resetForm();
     } catch (error) {
       console.error("Erro ao salvar produto:", error);
-
-      // Mostrar erro mais específico
-      if (error instanceof Error) {
-        alert(`Erro ao salvar produto: ${error.message}`);
-      } else {
-        alert("Erro desconhecido ao salvar produto");
-      }
+      showNotification("Erro ao salvar produto.", "error");
     }
   };
 
@@ -122,12 +154,12 @@ export function ProdutosPage() {
     setEditingProduto(produto);
     setFormData({
       nome: produto.nome,
-      descricao: produto.descricao,
+      descricao: produto.descricao || "",
       preco_venda: produto.preco_venda,
       tipo_medida: produto.tipo_medida,
-      estoque_minimo: produto.estoque_minimo,
+      estoque_minimo: produto.estoque_minimo || 0,
       ativo: produto.ativo,
-      imagem: undefined, // Não podemos pré-carregar o arquivo
+      imagem: produto.imagem || "",
     });
     setPreviewImage(produto.imagem || null);
     setShowForm(true);
@@ -136,43 +168,21 @@ export function ProdutosPage() {
   const handleDelete = async (id: number) => {
     if (confirm("Tem certeza que deseja excluir este produto?")) {
       try {
-        console.log("=== INICIANDO EXCLUSÃO DE PRODUTO ===");
-        console.log("ID:", id);
-
         await produtosService.excluir(id);
-
-        console.log("=== PRODUTO EXCLUÍDO COM SUCESSO ===");
-        console.log("Recarregando lista de produtos...");
-
+        showNotification("Produto excluído com sucesso!", "success");
         await carregarProdutos();
-
-        alert("✅ Produto excluído com sucesso!");
       } catch (error) {
-        console.error("=== ERRO AO EXCLUIR PRODUTO ===");
         console.error("Erro ao excluir produto:", error);
-
-        // Mostrar erro mais específico
-        if (error instanceof Error) {
-          alert(`❌ Erro ao excluir produto: ${error.message}`);
-        } else {
-          alert("❌ Erro desconhecido ao excluir produto");
-        }
+        showNotification("Erro ao excluir produto.", "error");
       }
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFormData((prev) => ({ ...prev, imagem: file }));
-
-      // Criar preview da imagem
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  // Agora a imagem é apenas uma URL
+  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setFormData((prev) => ({ ...prev, imagem: url }));
+    setPreviewImage(url || null);
   };
 
   const resetForm = () => {
@@ -183,154 +193,100 @@ export function ProdutosPage() {
       tipo_medida: "kg",
       estoque_minimo: 0,
       ativo: true,
-      imagem: undefined,
+      imagem: "",
     });
     setPreviewImage(null);
     setEditingProduto(null);
     setShowForm(false);
   };
 
-  const formatarPreco = (preco: any): string => {
-    const valor = Number(preco);
-    return isNaN(valor)
-      ? "R$ 0,00"
-      : `R$ ${valor.toFixed(2).replace(".", ",")}`;
+  const handleRecarregar = () => {
+    setReloading(true);
+    carregarProdutos();
   };
 
-  const testarConectividade = async () => {
-    console.log("=== TESTANDO CONECTIVIDADE MANUAL ===");
-    const conectado = await testeConectividade.verificarConexao();
-    if (conectado) {
-      alert("✅ Conectividade OK! Backend está respondendo.");
-    } else {
-      alert("❌ Erro de conectividade! Verifique se o backend está rodando.");
-    }
+  const formatCurrency = (value: number | string) => {
+    const numberValue = Number(value) || 0;
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(numberValue);
   };
 
-  const produtosFiltrados = (produtos || []).filter(
-    (produto) =>
-      produto.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (produto.descricao ?? "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const produtosFiltrados =
+    produtos?.filter(
+      (p) =>
+        p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.descricao || "").toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
 
-  if (loading) {
-    return <Loading />;
-  }
+  if (loading) return <Loading />;
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:py-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-          Produtos
-        </h1>
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button
-            onClick={testarConectividade}
-            variant="outline"
-            className="flex-1 sm:flex-none"
-          >
-            🔗 <span className="hidden sm:inline ml-1">Testar API</span>
-          </Button>
-          <Button
-            onClick={carregarProdutos}
-            variant="outline"
-            className="flex-1 sm:flex-none"
-          >
-            🔄 <span className="hidden sm:inline ml-1">Recarregar</span>
-          </Button>
-          <Button
-            onClick={() => setShowForm(true)}
-            className="flex-1 sm:flex-none"
-          >
-            + <span className="hidden sm:inline ml-1">Novo Produto</span>
-            <span className="sm:hidden ml-1">Novo</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Busca */}
-      <div className="mb-6">
-        <Input
-          placeholder="Buscar por descrição..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full sm:max-w-md"
+    <>
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onDismiss={() => setNotification(null)}
         />
-      </div>
+      )}
 
       {/* Modal do Formulário */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-4 sm:p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg sm:text-xl font-semibold">
-                  {editingProduto ? "Editar Produto" : "Novo Produto"}
-                </h2>
-                <Button variant="outline" onClick={resetForm} size="sm">
-                  ✕
-                </Button>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="flex flex-col h-full">
+              <div className="p-6 border-b">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    {editingProduto ? "Editar Produto" : "Novo Produto"}
+                  </h2>
+                  <Button variant="ghost" onClick={resetForm} size="sm">
+                    <FiX className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
 
-              {editingProduto && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-700">
-                    <strong>Editando produto:</strong> {editingProduto.nome}
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Todos os campos podem ser alterados
-                  </p>
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="p-6 space-y-4 overflow-y-auto">
                 <Input
-                  label="Nome *"
+                  label="Nome do Produto *"
                   value={formData.nome}
                   onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      nome: e.target.value,
-                    }))
+                    setFormData((p) => ({ ...p, nome: e.target.value }))
                   }
                   required
                 />
-
                 <Input
-                  label="Descrição"
+                  label="Descrição (Opcional)"
                   value={formData.descricao}
                   onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      descricao: e.target.value,
-                    }))
+                    setFormData((p) => ({ ...p, descricao: e.target.value }))
                   }
                 />
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
-                    label="Preço de Venda (R$) *"
+                    label="Preço de Venda *"
                     type="number"
                     step="0.01"
                     value={formData.preco_venda}
                     onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
+                      setFormData((p) => ({
+                        ...p,
                         preco_venda: parseFloat(e.target.value) || 0,
                       }))
                     }
                     required
                   />
-
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Tipo de Medida *
                     </label>
                     <select
                       value={formData.tipo_medida}
                       onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
+                        setFormData((p) => ({
+                          ...p,
                           tipo_medida: e.target.value as any,
                         }))
                       }
@@ -346,137 +302,229 @@ export function ProdutosPage() {
                     </select>
                   </div>
                 </div>
-
                 <Input
-                  label="Estoque Mínimo *"
+                  label="Estoque Mínimo"
                   type="number"
                   value={formData.estoque_minimo}
                   onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
+                    setFormData((p) => ({
+                      ...p,
                       estoque_minimo: parseInt(e.target.value) || 0,
                     }))
                   }
-                  required
                 />
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Imagem do Produto
+                    URL da Imagem
                   </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                  {editingProduto && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      Nova imagem será enviada em requisição separada
-                    </p>
-                  )}
-                  {previewImage && (
-                    <div className="mt-2">
+                  <div className="flex items-center gap-4">
+                    {previewImage ? (
                       <img
                         src={previewImage}
                         alt="Preview"
-                        className="w-32 h-32 object-cover rounded-lg border mx-auto sm:mx-0"
+                        className="w-20 h-20 object-cover rounded-lg border"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
                       />
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                        <FiImage className="w-8 h-8" />
+                      </div>
+                    )}
+                    <Input
+                      type="text"
+                      placeholder="Cole a URL da imagem"
+                      value={formData.imagem ?? ""}
+                      onChange={handleImageUrlChange}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                  <span className="text-sm font-medium text-gray-700">
+                    Produto Ativo
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.ativo}
+                      onChange={(e) =>
+                        setFormData((p) => ({ ...p, ativo: e.target.checked }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              <div className="p-4 bg-gray-50 border-t mt-auto">
+                <div className="flex gap-2 justify-end">
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">
+                    {editingProduto ? "Salvar Alterações" : "Cadastrar Produto"}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="container mx-auto px-4 py-8">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">
+              Gerenciar Produtos
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Adicione, edite e visualize seus produtos.
+            </p>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              onClick={handleRecarregar}
+              variant="outline"
+              disabled={reloading}
+              className="flex-1 sm:flex-none"
+            >
+              <FiRefreshCw
+                className={`h-4 w-4 ${reloading ? "animate-spin" : ""}`}
+              />
+            </Button>
+            <Button
+              onClick={() => setShowForm(true)}
+              className="flex-1 sm:flex-none"
+            >
+              <FiPlus className="h-4 w-4 mr-2" /> Novo Produto
+            </Button>
+          </div>
+        </header>
+
+        {/* Busca */}
+        <div className="mb-8">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input
+              placeholder="Buscar por nome ou descrição..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:max-w-md pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Grid de Produtos */}
+        {produtosFiltrados.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {produtosFiltrados.map((p) => (
+              <div
+                key={p.id}
+                className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col group transition-all hover:shadow-xl hover:-translate-y-1"
+              >
+                <div className="relative">
+                  <div className="aspect-w-1 aspect-h-1 bg-gray-100 flex items-center justify-center">
+                    {p.imagem && p.imagem.trim() !== "" ? (
+                      <div className="w-28 h-28 flex items-center justify-center mx-auto">
+                        <img
+                          src={p.imagem}
+                          alt={p.descricao || p.nome}
+                          className="w-full h-full object-cover rounded-lg border"
+                          style={{
+                            minWidth: "7rem",
+                            minHeight: "7rem",
+                            maxWidth: "7rem",
+                            maxHeight: "7rem",
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-28 h-28 flex items-center justify-center mx-auto bg-gray-100 rounded-lg">
+                        <FiPackage className="w-16 h-16 text-gray-300" />
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full text-white ${
+                      p.ativo ? "bg-green-500" : "bg-gray-500"
+                    }`}
+                  >
+                    {p.ativo ? "Ativo" : "Inativo"}
+                  </span>
+                </div>
+                <div className="p-4 flex flex-col flex-grow">
+                  <h3 className="font-bold text-lg text-gray-800 mb-1 truncate">
+                    {p.nome}
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-3 flex-grow h-10">
+                    {p.descricao}
+                  </p>
+                  <div className="text-xl font-semibold text-gray-900 mb-3">
+                    {formatCurrency(p.preco_venda)}{" "}
+                    <span className="text-sm font-normal text-gray-500">
+                      / {p.tipo_medida}
+                    </span>
+                  </div>
+
+                  {p.estoque_minimo && (
+                    <div className="flex items-center gap-2 text-yellow-600 text-xs mb-3 p-2 bg-yellow-50 rounded-md">
+                      <FiAlertCircle />
+                      <span>Estoque mínimo: {p.estoque_minimo}</span>
                     </div>
                   )}
                 </div>
-
-                <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
+                <div className="p-4 bg-gray-50/70 flex gap-2">
                   <Button
-                    type="button"
                     variant="outline"
-                    onClick={resetForm}
-                    className="w-full sm:w-auto"
+                    size="sm"
+                    onClick={() => handleEdit(p)}
+                    className="flex-1"
                   >
-                    Cancelar
+                    <FiEdit className="mr-2 h-4 w-4" /> Editar
                   </Button>
-                  <Button type="submit" className="w-full sm:w-auto">
-                    {editingProduto ? "Atualizar" : "Cadastrar"}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(p.id)}
+                    className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                  >
+                    <FiTrash2 />
                   </Button>
                 </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Grid de Produtos */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        {produtosFiltrados.map((produto) => (
-          <div
-            key={produto.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-          >
-            <div className="aspect-square bg-gray-100 flex items-center justify-center">
-              {produto.imagem ? (
-                <img
-                  src={produto.imagem}
-                  alt={produto.descricao}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="text-gray-400 text-center">
-                  <svg
-                    className="w-16 h-16 mx-auto mb-2"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span className="text-sm">Sem imagem</span>
-                </div>
-              )}
-            </div>
-
-            <div className="p-4">
-              <h3 className="font-semibold text-gray-900 mb-1">
-                {produto.nome}
-              </h3>
-              <p className="text-sm text-gray-600 mb-2">{produto.descricao}</p>
-              <div className="text-sm text-gray-500 mb-3">
-                <p>Preço: {formatarPreco(produto.preco_venda)}</p>
-                <p>Medida: {produto.tipo_medida}</p>
-                <p>Estoque mín.: {produto.estoque_minimo}</p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(produto)}
-                  className="flex-1 text-xs sm:text-sm"
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDelete(produto.id)}
-                  className="flex-1 text-red-600 hover:text-red-900 hover:bg-red-50 text-xs sm:text-sm"
-                >
-                  🗑️ Excluir
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 px-6 bg-gray-50 rounded-lg">
+            <FiPackage className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-lg font-medium text-gray-900">
+              {searchTerm
+                ? "Nenhum produto encontrado"
+                : "Nenhum produto cadastrado"}
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {searchTerm
+                ? "Tente uma busca diferente ou limpe o filtro."
+                : "Comece adicionando seu primeiro produto."}
+            </p>
+            {!searchTerm && (
+              <div className="mt-6">
+                <Button onClick={() => setShowForm(true)}>
+                  <FiPlus className="-ml-1 mr-2 h-5 w-5" />
+                  Adicionar Produto
                 </Button>
               </div>
-            </div>
+            )}
           </div>
-        ))}
+        )}
       </div>
-
-      {produtosFiltrados.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          {searchTerm
-            ? "Nenhum produto encontrado"
-            : "Nenhum produto cadastrado"}
-        </div>
-      )}
-    </div>
+    </>
   );
 }

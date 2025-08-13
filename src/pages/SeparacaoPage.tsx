@@ -8,11 +8,8 @@ import type { Venda, FormSeparacaoItem } from "@/types";
 function formatarData(data: string | null | undefined): string {
   if (!data) return "Data não informada";
   try {
-    // Se a data já estiver no formato brasileiro, retornar como está
     if (data.includes("/")) return data;
-
     const date = new Date(data);
-    // Verificar se a data é válida
     if (isNaN(date.getTime())) {
       return "Data inválida";
     }
@@ -25,11 +22,8 @@ function formatarData(data: string | null | undefined): string {
 function formatarDataHora(data: string | null | undefined): string {
   if (!data) return "Data não informada";
   try {
-    // Se a data já estiver formatada, retornar como está
     if (data.includes("/") && data.includes(":")) return data;
-
     const date = new Date(data);
-    // Verificar se a data é válida
     if (isNaN(date.getTime())) {
       return "Data inválida";
     }
@@ -39,7 +33,6 @@ function formatarDataHora(data: string | null | undefined): string {
   }
 }
 
-// Funções utilitárias para conversão
 function toNumber(value: string | number): number {
   return typeof value === "string" ? parseFloat(value) || 0 : value;
 }
@@ -76,27 +69,21 @@ export function SeparacaoPage() {
     try {
       setLoading(true);
       setError(null);
-
       console.log("📋 Carregando pedidos para separação...");
 
-      // Carregar tanto pedidos a separar quanto já separados
       const [responseSeparar, responseSeparados] = await Promise.all([
         vendasService.listar({ situacao_pedido: "A separar" }),
-        vendasService.listar({ situacao_pedido: "Separado", limit: 5 }), // Últimos 5 separados
+        vendasService.listar({ situacao_pedido: "Separado", limit: 5 }),
       ]);
 
-      // Extrair vendas da resposta (baseado na estrutura real da API)
       const vendasSeparar = responseSeparar.vendas || [];
       const vendasSeparadas = responseSeparados.vendas || [];
 
-      // Combinar e ordenar por data
       const todosPedidos = [...vendasSeparar, ...vendasSeparadas].sort(
         (a, b) => {
-          // Pedidos "A separar" primeiro, depois por data
           if (a.situacao_pedido !== b.situacao_pedido) {
             return a.situacao_pedido === "A separar" ? -1 : 1;
           }
-          // Usar data_venda (campo real do backend)
           const dataA = obterDataPedido(a);
           const dataB = obterDataPedido(b);
           return new Date(dataB).getTime() - new Date(dataA).getTime();
@@ -115,7 +102,6 @@ export function SeparacaoPage() {
 
   const selecionarVenda = (venda: Venda) => {
     setVendaSelecionada(venda);
-    // Inicializar pesos reais com as quantidades originais
     const pesosIniciais: Record<number, number> = {};
     venda.itens?.forEach((item) => {
       pesosIniciais[item.produto_id] = toNumber(item.quantidade);
@@ -124,12 +110,10 @@ export function SeparacaoPage() {
   };
 
   const atualizarPesoReal = (produtoId: number, peso: number) => {
-    // Validar que o peso é um número válido e positivo
     if (isNaN(peso) || peso < 0) {
       console.warn(`Peso inválido para produto ${produtoId}: ${peso}`);
       return;
     }
-    
     setPesosReais((prev) => ({
       ...prev,
       [produtoId]: peso,
@@ -141,30 +125,25 @@ export function SeparacaoPage() {
 
     try {
       setProcessando(true);
-
       console.log("🔄 Confirmando separação...");
-      console.log("Venda selecionada:", vendaSelecionada);
-      console.log("Pesos reais atuais:", pesosReais);
 
-      // Validar se todos os itens têm peso real válido
       const itensSeparacao: FormSeparacaoItem[] =
         vendaSelecionada.itens?.map((item) => {
-          const quantidadeReal = pesosReais[item.produto_id] || toNumber(item.quantidade);
-          
-          // Validação adicional
+          const quantidadeReal =
+            pesosReais[item.produto_id] || toNumber(item.quantidade);
           if (isNaN(quantidadeReal) || quantidadeReal <= 0) {
-            throw new Error(`Quantidade inválida para o produto ${item.produto_nome || item.produto_id}: ${quantidadeReal}`);
+            throw new Error(
+              `Quantidade inválida para o produto ${
+                item.produto_nome || item.produto_id
+              }: ${quantidadeReal}`
+            );
           }
-
           return {
             produto_id: item.produto_id,
             quantidade_real: Number(quantidadeReal),
           };
         }) || [];
 
-      console.log("Itens preparados para separação:", itensSeparacao);
-
-      // Verificar se há itens para separar
       if (itensSeparacao.length === 0) {
         throw new Error("Nenhum item encontrado para separação");
       }
@@ -175,22 +154,17 @@ export function SeparacaoPage() {
       );
 
       console.log("✅ Separação confirmada com sucesso!");
-
-      // Recarregar lista e limpar seleção
       await carregarVendasParaSeparar();
       setVendaSelecionada(null);
       setPesosReais({});
     } catch (err) {
       console.error("❌ Erro ao confirmar separação:", err);
-      
-      // Melhor tratamento do erro
       let mensagemErro = "Erro ao confirmar separação";
       if (err instanceof Error) {
         mensagemErro = err.message;
-      } else if (typeof err === 'object' && err !== null && 'message' in err) {
+      } else if (typeof err === "object" && err !== null && "message" in err) {
         mensagemErro = (err as any).message;
       }
-      
       setError(mensagemErro);
     } finally {
       setProcessando(false);
@@ -231,8 +205,12 @@ export function SeparacaoPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Lista de Pedidos */}
-        <div className="bg-white rounded-lg shadow">
+        {/* Lista de Pedidos - Visível em telas grandes ou quando nenhum pedido está selecionado em telas pequenas */}
+        <div
+          className={`bg-white rounded-lg shadow ${
+            vendaSelecionada ? "hidden lg:block" : "block"
+          }`}
+        >
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">
               Pedidos (
@@ -243,7 +221,7 @@ export function SeparacaoPage() {
             </h2>
           </div>
 
-          <div className="divide-y divide-gray-200">
+          <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-200">
             {vendas.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
                 Nenhum pedido aguardando separação
@@ -305,18 +283,31 @@ export function SeparacaoPage() {
           </div>
         </div>
 
-        {/* Detalhes da Separação */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
+        {/* Detalhes da Separação - Visível em telas grandes ou quando um pedido está selecionado */}
+        <div
+          className={`bg-white rounded-lg shadow ${
+            vendaSelecionada ? "block" : "hidden lg:block"
+          }`}
+        >
+          <div className="p-6 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">
               {vendaSelecionada
                 ? `Separar Pedido #${vendaSelecionada.id}`
                 : "Selecione um Pedido"}
             </h2>
+            {vendaSelecionada && (
+              <Button
+                onClick={cancelarSeparacao}
+                variant="outline"
+                className="lg:hidden"
+              >
+                Voltar
+              </Button>
+            )}
           </div>
 
           {vendaSelecionada ? (
-            <div className="p-6">
+            <div className="p-6 max-h-[80vh] overflow-y-auto">
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">
                   {obterNomeCliente(vendaSelecionada)}
@@ -429,12 +420,12 @@ export function SeparacaoPage() {
                           className="w-full"
                           required
                         />
-                        {pesosReais[item.produto_id] !== undefined && 
-                         pesosReais[item.produto_id] <= 0 && (
-                          <p className="text-red-500 text-sm mt-1">
-                            O peso deve ser maior que zero
-                          </p>
-                        )}
+                        {pesosReais[item.produto_id] !== undefined &&
+                          pesosReais[item.produto_id] <= 0 && (
+                            <p className="text-red-500 text-sm mt-1">
+                              O peso deve ser maior que zero
+                            </p>
+                          )}
                       </div>
                     )}
                   </div>
@@ -455,6 +446,7 @@ export function SeparacaoPage() {
                     onClick={cancelarSeparacao}
                     variant="outline"
                     disabled={processando}
+                    className="hidden lg:block"
                   >
                     Cancelar
                   </Button>
@@ -471,9 +463,7 @@ export function SeparacaoPage() {
             </div>
           ) : (
             <div className="p-6 text-center text-gray-500">
-              <p>
-                Selecione um pedido da lista ao lado para iniciar a separação
-              </p>
+              <p>Selecione um pedido da lista para iniciar a separação</p>
             </div>
           )}
         </div>

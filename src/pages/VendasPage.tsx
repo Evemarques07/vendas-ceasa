@@ -410,6 +410,34 @@ export function VendasPage() {
         .grid { display: grid; }
         .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .gap-4 { gap: 16px; }
+        /* Adicionado para o alinhamento do flex */
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .inline-flex { display: inline-flex; }
+        .justify-end { justify-content: flex-end; }
+        .justify-between { justify-content: space-between; }
+        .w-1/3 { width: 33.333333%; }
+        .w-24 { width: 6rem; } /* 96px */
+        .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+        .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+        .text-xs { font-size: 0.75rem; } /* 12px */
+        .rounded-full { border-radius: 9999px; }
+        .mt-2 { margin-top: 0.5rem; }
+        .border-b { border-bottom-width: 1px; }
+        .border-gray-200 { border-color: #e5e7eb; }
+        .border-collapse { border-collapse: collapse; }
+        .border-l-4 { border-left-width: 4px; }
+        .border-yellow-400 { border-color: #facc15; }
+        .bg-green-100 { background-color: #d1fae5; }
+        .text-green-800 { color: #065f46; }
+        .bg-yellow-100 { background-color: #fef3c7; }
+        .text-yellow-800 { color: #92400e; }
+        .bg-red-100 { background-color: #fee2e2; }
+        .text-red-800 { color: #991b1b; }
+        .bg-yellow-50 { background-color: #fffbeb; }
+        .text-yellow-700 { color: #b45309; }
+        .bg-gray-800 { background-color: #1f2937; }
+        .bg-gray-100 { background-color: #f3f4f6; }
       </style>
 
       <div class="p-4">
@@ -459,7 +487,7 @@ export function VendasPage() {
             <h3 class="font-semibold text-gray-800 mb-2">Detalhes do Pedido</h3>
             <div class="flex items-center mb-1">
               <span class="font-semibold w-24">Status:</span>
-              <span class="px-2 py-1 text-xs font-bold rounded-full ${
+              <span class="inline-flex items-center px-2 py-1 text-xs font-bold rounded-full ${
                 venda.situacao_pedido === "Separado"
                   ? "bg-green-100 text-green-800"
                   : "bg-yellow-100 text-yellow-800"
@@ -469,7 +497,7 @@ export function VendasPage() {
             </div>
             <div class="flex items-center">
               <span class="font-semibold w-24">Pagamento:</span>
-              <span class="px-2 py-1 text-xs font-bold rounded-full ${
+              <span class="inline-flex items-center px-2 py-1 text-xs font-bold rounded-full ${
                 venda.situacao_pagamento === "Pago"
                   ? "bg-green-100 text-green-800"
                   : "bg-red-100 text-red-800"

@@ -28,8 +28,8 @@ import type {
 } from "@/types";
 
 // Configuração base da API
-const API_BASE_URL = "https://www.evertonmarques.com.br/api";
-// const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
+// const API_BASE_URL = "https://www.evertonmarques.com.br/api";
+const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
 
 // Função para mapear tipos de medida do frontend para a API
 function mapearTipoMedida(tipoMedida: TipoMedida): string {
@@ -418,6 +418,7 @@ export const produtosService = {
     }
   },
   //const response = await api
+  // agora envia a url da imagem
   async criar(dados: FormProduto): Promise<Produto> {
     try {
       console.log("=== CRIANDO PRODUTO ===");
@@ -460,6 +461,7 @@ export const produtosService = {
         tipo_medida: mapearTipoMedida(dados.tipo_medida), // Mapear para valores da API
         estoque_minimo: Number(dados.estoque_minimo),
         ativo: dados.ativo !== undefined ? dados.ativo : true,
+        imagem: typeof dados.imagem === "string" ? dados.imagem : undefined,
       };
 
       console.log("Dados formatados para API:", dadosParaAPI);
@@ -470,6 +472,7 @@ export const produtosService = {
         tipo_medida: typeof dadosParaAPI.tipo_medida,
         estoque_minimo: typeof dadosParaAPI.estoque_minimo,
         ativo: typeof dadosParaAPI.ativo,
+        imagem: typeof dadosParaAPI.imagem,
       });
 
       // Validar que descricao não é null
@@ -502,44 +505,12 @@ export const produtosService = {
       );
 
       // Se houver imagem, usar FormData
-      if (dados.imagem) {
-        console.log("Enviando com imagem via FormData");
-        const formData = new FormData();
-        formData.append("nome", dadosParaAPI.nome);
-        formData.append("descricao", dadosParaAPI.descricao);
-        formData.append("preco_venda", dadosParaAPI.preco_venda.toString());
-        formData.append("tipo_medida", dadosParaAPI.tipo_medida); // Já mapeado
-        formData.append(
-          "estoque_minimo",
-          dadosParaAPI.estoque_minimo.toString()
-        );
-        formData.append("ativo", dadosParaAPI.ativo.toString());
-        formData.append("imagem", dados.imagem);
-
-        const response = await api.post<ApiResponse<Produto>>(
-          "/produtos/",
-          formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
-        return response.data.data;
-      } else {
-        // Sem imagem, enviar como JSON puro
-        console.log("Enviando sem imagem via JSON");
-        console.log("Interceptor vai adicionar headers:", {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-        });
-
-        const response = await api.post<ApiResponse<Produto>>(
-          "/produtos/",
-          dadosParaAPI
-        );
-        return response.data.data;
-      }
+      // Sempre enviar como JSON, apenas com a URL da imagem (string)
+      const response = await api.post<ApiResponse<Produto>>(
+        "/produtos/",
+        dadosParaAPI
+      );
+      return response.data.data;
     } catch (error) {
       console.error("Erro na função criar:", error);
       return handleApiError(error as AxiosError);
@@ -596,9 +567,13 @@ export const produtosService = {
       console.log("=== RESPOSTA RECEBIDA ===");
       console.log("Resposta da API:", response.data);
 
-      // Se há imagem para atualizar, fazer requisição separada
-      if (imagem) {
-        console.log("=== ATUALIZANDO IMAGEM ===");
+      // Se há imagem para atualizar, fazer requisição separada (agora só URL string)
+      if (
+        typeof imagem === "string" &&
+        imagem &&
+        (imagem as string).trim() !== ""
+      ) {
+        console.log("=== ATUALIZANDO IMAGEM (URL) ===");
         await this.atualizarImagem(id, imagem);
       }
 
@@ -623,18 +598,13 @@ export const produtosService = {
     }
   },
 
-  async atualizarImagem(id: number, imagem: File): Promise<void> {
+  async atualizarImagem(id: number, imagemUrl: string): Promise<void> {
     try {
-      console.log("=== ATUALIZANDO IMAGEM DO PRODUTO ===");
-      const formData = new FormData();
-      formData.append("imagem", imagem);
-
-      const response = await api.put(`/produtos/${id}/imagem`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      console.log("=== ATUALIZANDO IMAGEM DO PRODUTO VIA URL ===");
+      console.log("ID:", id, "URL:", imagemUrl);
+      const response = await api.put(`/produtos/${id}/imagem`, null, {
+        params: { imagem_url: imagemUrl },
       });
-
       console.log("Imagem atualizada:", response.data);
     } catch (error) {
       console.error("Erro ao atualizar imagem:", error);
