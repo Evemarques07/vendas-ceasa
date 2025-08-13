@@ -8,7 +8,10 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 
 const loginSchema = z.object({
-  email: z.string().min(1, "Email é obrigatório").email("Email inválido"),
+  cpf: z
+    .string()
+    .min(1, "CPF é obrigatório")
+    .regex(/^\d{11}$/, "CPF deve conter 11 dígitos numéricos"),
   senha: z
     .string()
     .min(1, "Senha é obrigatória")
@@ -36,7 +39,7 @@ export function LoginPage() {
     setError("");
 
     try {
-      await login(data.email, data.senha);
+      await login(data.cpf, data.senha);
       navigate("/dashboard");
     } catch (err: any) {
       setError(err.message || "Erro ao fazer login");
@@ -50,9 +53,7 @@ export function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Sistema Vendas
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900">Sistema Vendas</h1>
           <p className="mt-2 text-sm text-gray-600">
             Controle de Pedidos, Estoque e Financeiro
           </p>
@@ -72,11 +73,12 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-              label="Email"
-              type="email"
-              placeholder="seu@email.com"
-              {...register("email")}
-              error={errors.email?.message}
+              label="CPF"
+              type="text"
+              placeholder="Apenas números"
+              maxLength={11}
+              {...register("cpf")}
+              error={errors.cpf?.message}
               disabled={isLoading}
             />
 

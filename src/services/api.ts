@@ -29,6 +29,7 @@ import type {
 
 // Configuração base da API
 const API_BASE_URL = "https://www.evertonmarques.com.br/api";
+// const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
 
 // Função para mapear tipos de medida do frontend para a API
 function mapearTipoMedida(tipoMedida: TipoMedida): string {
@@ -246,14 +247,14 @@ function handleApiError(error: AxiosError): never {
 // === AUTENTICAÇÃO ===
 export const authService = {
   async login(
-    email: string,
+    login: string,
     senha: string
   ): Promise<{ user: Usuario; token: string }> {
     try {
       const response = await api.post<
         ApiResponse<{ user: Usuario; token: string }>
       >("/auth/login", {
-        email,
+        login,
         senha,
       });
       return response.data.data;
