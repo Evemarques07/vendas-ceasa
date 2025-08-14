@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatCpfCnpj } from "@/lib/utils";
 
 // Componentes de UI
-import { Button } from "@/components/ui/Button"; // Assumindo que o Button agora está em /ui
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox"; // Precisamos deste novo componente

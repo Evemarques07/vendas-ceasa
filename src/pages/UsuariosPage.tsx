@@ -10,7 +10,7 @@ import { userService } from "@/services/api";
 import type { Usuario, FormUsuarioCreate } from "@/types";
 
 // Componentes de UI
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/Loading";
 import Table from "@/components/Table";
 import {

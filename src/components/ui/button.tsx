@@ -1,4 +1,4 @@
-// src/components/Button.tsx
+// src/components/ui/button.tsx
 
 import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { Slot } from "@radix-ui/react-slot"; // 1. Importe o Slot

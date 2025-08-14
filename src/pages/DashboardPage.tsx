@@ -8,7 +8,7 @@ import type { AlertasEstoque, DashboardVendas } from "@/types";
 
 // --- Componentes ---
 // import { BackendStatus } from "@/components/BackendStatus";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/Loading";
 
 // --- Ícones ---
