@@ -1,3 +1,4 @@
+//src/lib/router.tsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoginPage } from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -10,6 +11,7 @@ import { RelatoriosPage } from "@/pages/RelatoriosPage";
 import { AuthGuard } from "@/components/AuthGuard";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Layout } from "@/components/Layout";
+import { UsuariosPage } from "@/pages/UsuariosPage";
 
 export const router = createBrowserRouter([
   {
@@ -97,6 +99,18 @@ export const router = createBrowserRouter([
         <RoleGuard allowedRoles={["administrador"]}>
           <Layout>
             <RelatoriosPage />
+          </Layout>
+        </RoleGuard>
+      </AuthGuard>
+    ),
+  },
+  {
+    path: "/usuarios",
+    element: (
+      <AuthGuard>
+        <RoleGuard allowedRoles={["administrador"]}>
+          <Layout>
+            <UsuariosPage />
           </Layout>
         </RoleGuard>
       </AuthGuard>

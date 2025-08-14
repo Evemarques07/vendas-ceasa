@@ -1,6 +1,62 @@
+// === PERFIL DO PRÓPRIO USUÁRIO ===
+export const perfilService = {
+  async atualizarNome(novo_nome: string): Promise<Usuario> {
+    try {
+      // Pega o usuário logado do localStorage
+      const userStr = localStorage.getItem("currentUser");
+      if (!userStr) throw new Error("Usuário não autenticado");
+      const user = JSON.parse(userStr) as Usuario;
+      const response = await api.put<ApiResponse<Usuario>>(
+        `/user/funcionarios/${user.id}/nome`,
+        null,
+        { params: { novo_nome } }
+      );
+      return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+  async atualizarNomeAdmin(
+    admin_id: number,
+    novo_nome: string
+  ): Promise<Usuario> {
+    try {
+      const response = await api.put<ApiResponse<Usuario>>(
+        `/user/funcionarios/${admin_id}/nome`,
+        null,
+        { params: { novo_nome } }
+      );
+      return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+  async alterarSenha(nova_senha: string): Promise<void> {
+    try {
+      await api.put("/user/me/senha", null, { params: { nova_senha } });
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+  async alterarSenhaAdmin(admin_id: number, nova_senha: string): Promise<void> {
+    try {
+      await api.put(`/user/administradores/${admin_id}/senha`, null, {
+        params: { nova_senha },
+      });
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+};
+// src/services/api.ts
+
 import axios, { type AxiosResponse, AxiosError } from "axios";
 import type {
   Usuario,
+  FormUsuarioCreate,
+  // FormUsuarioChangePassword,
+  //ListaPaginadaUsuarios,
+  //FiltroUsuarios,
   Cliente,
   Produto,
   Venda,
@@ -28,8 +84,8 @@ import type {
 } from "@/types";
 
 // Configuração base da API
-const API_BASE_URL = "https://www.evertonmarques.com.br/api";
-// const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
+// const API_BASE_URL = "https://www.evertonmarques.com.br/api";
+const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
 
 // Função para mapear tipos de medida do frontend para a API
 function mapearTipoMedida(tipoMedida: TipoMedida): string {
@@ -279,6 +335,87 @@ export const authService = {
     try {
       const response = await api.get<ApiResponse<Usuario>>("/auth/me");
       return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+};
+
+export const userService = {
+  // Lista todos os funcionários
+  async listar(): Promise<Usuario[]> {
+    try {
+      const response = await api.get<ApiResponse<Usuario[]>>(
+        "/user/funcionarios"
+      );
+      return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
+  // Cria um novo funcionário
+  async criar(dados: FormUsuarioCreate): Promise<Usuario> {
+    try {
+      const response = await api.post<ApiResponse<Usuario>>(
+        "/user/funcionarios",
+        dados
+      );
+      return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
+  // Altera o nome de um funcionário
+  async atualizarNome(id: number, novo_nome: string): Promise<Usuario> {
+    try {
+      const response = await api.put<ApiResponse<Usuario>>(
+        `/user/funcionarios/${id}/nome`,
+        null,
+        {
+          params: { novo_nome },
+        }
+      );
+      return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
+  // Ativa ou desativa um funcionário
+  async atualizarAtivo(id: number, ativo: boolean): Promise<Usuario> {
+    try {
+      const response = await api.put<ApiResponse<Usuario>>(
+        `/user/funcionarios/${id}/ativo`,
+        null,
+        {
+          params: { ativo },
+        }
+      );
+      return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
+  // Altera a senha de um funcionário
+  async alterarSenha(id: number, nova_senha: string): Promise<void> {
+    try {
+      // Este endpoint também pode ser para administradores, então criamos uma lógica condicional
+      // Mas para a tela de usuários, vamos focar no funcionário
+      await api.put(`/user/funcionarios/${id}/senha`, null, {
+        params: { nova_senha },
+      });
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
+  // Deleta um funcionário
+  async excluir(id: number): Promise<void> {
+    try {
+      await api.delete(`/user/funcionarios/${id}`);
     } catch (error) {
       return handleApiError(error as AxiosError);
     }

@@ -1,3 +1,5 @@
+//src/types/index.ts
+
 // Tipos de usuário
 export type TipoUsuario = "administrador" | "funcionario";
 
@@ -6,9 +8,41 @@ export interface Usuario {
   id: number;
   nome: string;
   email: string;
+  cpf_ou_cnpj: string; // Campo confirmado pela API
   tipo: TipoUsuario;
   ativo: boolean;
   criado_em: string;
+  atualizado_em?: string | null; // Adicionado
+}
+
+// Interface para o formulário de criação de usuário
+export interface FormUsuarioCreate {
+  nome: string;
+  cpf_ou_cnpj: string;
+}
+
+// Interface para o formulário de alteração de senha (simplificado)
+export interface FormUsuarioChangePassword {
+  nova_senha: string;
+}
+
+// Interface para paginação - usuários (não é paginado pela API, mas mantemos para consistência)
+export interface ListaPaginadaUsuarios {
+  usuarios: Usuario[];
+  total: number;
+  // skip e limit não são usados por esta API específica, mas mantemos a estrutura
+  skip: number; 
+  limit: number;
+}
+
+// Filtros para pesquisa de usuários (não suportado pela API, mas pode ser usado para filtro no frontend)
+export interface FiltroUsuarios {
+  nome?: string;
+  email?: string;
+  tipo?: TipoUsuario;
+  ativo?: boolean;
+  skip?: number;
+  limit?: number;
 }
 
 // Tipos de medida - valores padronizados conforme backend

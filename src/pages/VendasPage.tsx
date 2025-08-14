@@ -9,6 +9,7 @@ import {
   clientesService,
   produtosService,
 } from "@/services/api";
+import { toast } from "@/components/ui/use-toast";
 import type {
   Venda,
   Cliente,
@@ -635,10 +636,49 @@ export function VendasPage() {
       const fileName = `pedido_${venda.id}_${
         clienteInfo?.nome?.replace(/[^a-zA-Z0-9]/g, "_") || "cliente"
       }.pdf`;
-      pdf.save(fileName);
+
+      // Converte o PDF para um Blob, que pode ser transformado em um File
+      const pdfBlob = pdf.output('blob');
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      // Dados para a Web Share API
+      const shareData = {
+        files: [pdfFile],
+        title: `Pedido Nº ${venda.id}`,
+        text: `Segue o PDF do pedido para ${clienteInfo?.nome || 'cliente'}.`,
+      };
+
+      // Verifica se o navegador suporta o compartilhamento de arquivos
+      if (navigator.canShare && navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData);
+          console.log("PDF compartilhado com sucesso!");
+        } catch (err: any) {
+          // O erro 'AbortError' ocorre se o usuário fechar a janela de compartilhamento
+          if (err.name !== 'AbortError') {
+            console.error("Erro ao compartilhar:", err);
+            // Se o compartilhamento falhar, oferece o download como fallback
+            toast({
+              title: "Compartilhamento falhou",
+              description: "O download do PDF será iniciado.",
+              variant: "destructive",
+            });
+            pdf.save(fileName);
+          }
+        }
+      } else {
+        // Fallback para navegadores que não suportam (ex: desktop)
+        console.log("Web Share API não suportada, iniciando download.");
+        pdf.save(fileName);
+      }
+      
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
-      alert("Erro ao gerar PDF. Tente novamente.");
+      toast({
+        title: "Erro ao gerar PDF",
+        description: "Não foi possível gerar o arquivo. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 

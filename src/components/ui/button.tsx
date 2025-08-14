@@ -3,7 +3,7 @@
 import { type ButtonHTMLAttributes, forwardRef } from "react";
 import { Slot } from "@radix-ui/react-slot"; // 1. Importe o Slot
 import { cn } from "@/lib/utils";
-import { LoadingSpinner } from "./Loading"; // Assumindo que você tem este componente
+import { LoadingSpinner } from "../Loading"; // Assumindo que você tem este componente
 
 // 2. Adicione a prop `asChild` à interface
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
