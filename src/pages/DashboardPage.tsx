@@ -7,7 +7,7 @@ import { estoqueService, relatoriosService } from "@/services/api";
 import type { AlertasEstoque, DashboardVendas } from "@/types";
 
 // --- Componentes ---
-import { BackendStatus } from "@/components/BackendStatus";
+// import { BackendStatus } from "@/components/BackendStatus";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/Loading";
 
@@ -363,7 +363,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <BackendStatus />
+        {/* <BackendStatus /> */}
       </div>
     );
   }
@@ -605,7 +605,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <BackendStatus />
+      {/* <BackendStatus /> */}
     </div>
   );
 }
