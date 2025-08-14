@@ -1,5 +1,5 @@
 // Arquivo de teste para verificar se o Tailwind CSS está funcionando
-import { Button } from "@/components/Button";
+import { Button } from "@/components/ui/Button";
 
 export function TestPage() {
   return (

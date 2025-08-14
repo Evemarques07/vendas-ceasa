@@ -8,7 +8,7 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-import { Button } from "../components/Button";
+import { Button } from "../components/ui/Button";
 import { Input } from "../components/Input";
 import { Loading } from "../components/Loading";
 import { estoqueService, produtosService } from "../services/api";

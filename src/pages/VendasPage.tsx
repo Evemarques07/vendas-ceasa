@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { Button } from "@/components/Button";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/Input";
 import { Loading } from "@/components/Loading";
 import {
@@ -638,14 +638,16 @@ export function VendasPage() {
       }.pdf`;
 
       // Converte o PDF para um Blob, que pode ser transformado em um File
-      const pdfBlob = pdf.output('blob');
-      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+      const pdfBlob = pdf.output("blob");
+      const pdfFile = new File([pdfBlob], fileName, {
+        type: "application/pdf",
+      });
 
       // Dados para a Web Share API
       const shareData = {
         files: [pdfFile],
         title: `Pedido Nº ${venda.id}`,
-        text: `Segue o PDF do pedido para ${clienteInfo?.nome || 'cliente'}.`,
+        text: `Segue o PDF do pedido para ${clienteInfo?.nome || "cliente"}.`,
       };
 
       // Verifica se o navegador suporta o compartilhamento de arquivos
@@ -655,7 +657,7 @@ export function VendasPage() {
           console.log("PDF compartilhado com sucesso!");
         } catch (err: any) {
           // O erro 'AbortError' ocorre se o usuário fechar a janela de compartilhamento
-          if (err.name !== 'AbortError') {
+          if (err.name !== "AbortError") {
             console.error("Erro ao compartilhar:", err);
             // Se o compartilhamento falhar, oferece o download como fallback
             toast({
@@ -671,7 +673,6 @@ export function VendasPage() {
         console.log("Web Share API não suportada, iniciando download.");
         pdf.save(fileName);
       }
-      
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       toast({

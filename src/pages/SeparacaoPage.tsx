@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { vendasService } from "@/services/api";
-import { Button } from "@/components/Button";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/Input";
 import { Loading } from "@/components/Loading";
 import type { Venda, FormSeparacaoItem } from "@/types";

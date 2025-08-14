@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Button } from "@/components/Button";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/Input";
 import { Loading } from "@/components/Loading";
 import { produtosService } from "@/services/api";

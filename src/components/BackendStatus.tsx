@@ -1,5 +1,5 @@
 import { useBackendConnection } from "@/hooks/useBackendConnection";
-import { Button } from "./Button";
+import { Button } from "./ui/Button";
 
 export function BackendStatus() {
   const { isConnected, healthData, error, checkConnection } =
