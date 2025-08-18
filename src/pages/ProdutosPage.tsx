@@ -64,12 +64,17 @@ export function ProdutosPage() {
     imagem?: string | undefined;
   };
 
-  const [formData, setFormData] = useState<FormProduto>({
+  const [formData, setFormData] = useState<
+    Omit<FormProduto, "preco_venda" | "estoque_minimo"> & {
+      preco_venda: string;
+      estoque_minimo: string;
+    }
+  >({
     nome: "",
     descricao: "",
-    preco_venda: 0,
+    preco_venda: "",
     tipo_medida: "kg",
-    estoque_minimo: 0,
+    estoque_minimo: "",
     ativo: true,
     imagem: "",
   });
@@ -105,12 +110,22 @@ export function ProdutosPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Conversão dos campos string para número
+    const precoVendaNum = parseFloat(formData.preco_venda.replace(",", "."));
+    const estoqueMinNum = formData.estoque_minimo
+      ? parseInt(formData.estoque_minimo)
+      : 0;
     if (
       !formData.nome.trim() ||
       !formData.preco_venda ||
+      isNaN(precoVendaNum) ||
+      precoVendaNum <= 0 ||
       !formData.tipo_medida
     ) {
-      showNotification("Preencha todos os campos obrigatórios.", "error");
+      showNotification(
+        "Preencha todos os campos obrigatórios corretamente.",
+        "error"
+      );
       return;
     }
 
@@ -120,6 +135,8 @@ export function ProdutosPage() {
         // Atualiza dados principais (exceto imagem)
         await produtosService.atualizar(editingProduto.id, {
           ...formData,
+          preco_venda: precoVendaNum,
+          estoque_minimo: estoqueMinNum,
           imagem: undefined, // Não enviar imagem no PUT principal
         });
         // Se a imagem foi alterada e não está vazia, atualiza via endpoint próprio
@@ -135,7 +152,11 @@ export function ProdutosPage() {
         }
       } else {
         // Só envia o campo imagem se houver URL preenchida
-        const dadosParaCriar = { ...formData };
+        const dadosParaCriar = {
+          ...formData,
+          preco_venda: precoVendaNum,
+          estoque_minimo: estoqueMinNum,
+        };
         if (!formData.imagem || formData.imagem.trim() === "") {
           delete (dadosParaCriar as any).imagem;
         }
@@ -155,9 +176,9 @@ export function ProdutosPage() {
     setFormData({
       nome: produto.nome,
       descricao: produto.descricao || "",
-      preco_venda: produto.preco_venda,
+      preco_venda: String(produto.preco_venda ?? ""),
       tipo_medida: produto.tipo_medida,
-      estoque_minimo: produto.estoque_minimo || 0,
+      estoque_minimo: String(produto.estoque_minimo ?? ""),
       ativo: produto.ativo,
       imagem: produto.imagem || "",
     });
@@ -189,9 +210,9 @@ export function ProdutosPage() {
     setFormData({
       nome: "",
       descricao: "",
-      preco_venda: 0,
+      preco_venda: "",
       tipo_medida: "kg",
-      estoque_minimo: 0,
+      estoque_minimo: "",
       ativo: true,
       imagem: "",
     });
@@ -267,15 +288,17 @@ export function ProdutosPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
                     label="Preço de Venda *"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
                     value={formData.preco_venda}
                     onChange={(e) =>
                       setFormData((p) => ({
                         ...p,
-                        preco_venda: parseFloat(e.target.value) || 0,
+                        preco_venda: e.target.value.replace(/[^0-9.,]/g, ""),
                       }))
                     }
+                    placeholder="Preço de venda"
                     required
                   />
                   <div>
@@ -304,14 +327,17 @@ export function ProdutosPage() {
                 </div>
                 <Input
                   label="Estoque Mínimo"
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={formData.estoque_minimo}
                   onChange={(e) =>
                     setFormData((p) => ({
                       ...p,
-                      estoque_minimo: parseInt(e.target.value) || 0,
+                      estoque_minimo: e.target.value.replace(/[^0-9]/g, ""),
                     }))
                   }
+                  placeholder="Estoque mínimo"
                 />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -58,10 +58,16 @@ export default function EstoquePage() {
     useState<Inventario | null>(null);
 
   // Form state para entrada de estoque
-  const [formData, setFormData] = useState<FormEntradaEstoque>({
+  // Para permitir apagar o zero, quantidade é string no input
+  const [formData, setFormData] = useState<
+    Omit<FormEntradaEstoque, "quantidade" | "preco_custo"> & {
+      quantidade: string;
+      preco_custo: string;
+    }
+  >({
     produto_id: 0,
-    quantidade: 0,
-    preco_custo: 0,
+    quantidade: "",
+    preco_custo: "",
     fornecedor: "",
     tipo_medida: "kg",
     observacoes: "",
@@ -129,8 +135,25 @@ export default function EstoquePage() {
       setLoadingForm(true);
       setError(null);
 
+      // Converter quantidade e preco_custo para número
+      const quantidadeNum = parseFloat(formData.quantidade.replace(",", "."));
+      const precoNum = parseFloat(formData.preco_custo.replace(",", "."));
+      if (!formData.quantidade || isNaN(quantidadeNum) || quantidadeNum <= 0) {
+        setError("Por favor, informe uma quantidade válida.");
+        setLoadingForm(false);
+        return;
+      }
+      if (!formData.preco_custo || isNaN(precoNum) || precoNum < 0) {
+        setError("Por favor, informe um preço de custo válido.");
+        setLoadingForm(false);
+        return;
+      }
+
       // Criar entrada de estoque
-      await estoqueService.registrarEntrada(formData, produtos);
+      await estoqueService.registrarEntrada(
+        { ...formData, quantidade: quantidadeNum, preco_custo: precoNum },
+        produtos
+      );
 
       // Recarregar dados
       await carregarDados();
@@ -148,8 +171,8 @@ export default function EstoquePage() {
   const resetForm = () => {
     setFormData({
       produto_id: 0,
-      quantidade: 0,
-      preco_custo: 0,
+      quantidade: "",
+      preco_custo: "",
       fornecedor: "",
       tipo_medida: "kg",
       observacoes: "",
@@ -417,15 +440,17 @@ export default function EstoquePage() {
 
                 <Input
                   label="Quantidade"
-                  type="number"
-                  step="0.001"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
                   value={formData.quantidade}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFormData({
                       ...formData,
-                      quantidade: parseFloat(e.target.value) || 0,
+                      quantidade: e.target.value.replace(/[^0-9.,]/g, ""),
                     })
                   }
+                  placeholder="Quantidade"
                   required
                 />
 
@@ -455,15 +480,17 @@ export default function EstoquePage() {
 
                 <Input
                   label="Preço de Custo (R$)"
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
                   value={formData.preco_custo}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFormData({
                       ...formData,
-                      preco_custo: parseFloat(e.target.value) || 0,
+                      preco_custo: e.target.value.replace(/[^0-9.,]/g, ""),
                     })
                   }
+                  placeholder="Preço de custo"
                   required
                 />
 

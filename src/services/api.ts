@@ -1,4 +1,3 @@
-
 // src/services/api.ts
 
 import axios, { type AxiosResponse, AxiosError } from "axios";
@@ -36,8 +35,8 @@ import type {
 } from "@/types";
 
 // Configuração base da API
-const API_BASE_URL = "https://www.evertonmarques.com.br/api";
-// const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
+// const API_BASE_URL = "https://www.evertonmarques.com.br/api";
+const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
 
 // Função para mapear tipos de medida do frontend para a API
 function mapearTipoMedida(tipoMedida: TipoMedida): string {
@@ -781,6 +780,18 @@ export const produtosService = {
 
 // === VENDAS ===
 export const vendasService = {
+  async excluir(id: number): Promise<{ message: string; success: boolean }> {
+    try {
+      console.log("=== EXCLUINDO VENDA ===");
+      console.log("ID da venda:", id);
+      const response = await api.delete<any>(`/vendas/${id}`);
+      console.log("Venda excluída:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao excluir venda:", error);
+      return handleApiError(error as AxiosError);
+    }
+  },
   async listar(filtros?: FiltroVendas): Promise<ListaPaginadaVendas> {
     try {
       console.log("=== LISTANDO VENDAS ===");
@@ -982,7 +993,6 @@ export const vendasService = {
       return handleApiError(error as AxiosError);
     }
   },
-  
 
   async atualizarSeparacao(
     id: number,
@@ -1158,6 +1168,19 @@ export const vendasService = {
     const response = await api.post("/vendas/venda-rapida", data);
     return response.data;
   },
+
+  //   async excluir(id: number): Promise<{ message: string; success: boolean }> {
+  //   try {
+  //     console.log("=== EXCLUINDO VENDA ===");
+  //     console.log("ID da venda:", id);
+  //     const response = await api.delete<any>(`/vendas/${id}`);
+  //     console.log("Venda excluída:", response.data);
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error("Erro ao excluir venda:", error);
+  //     return handleApiError(error as AxiosError);
+  //   }
+  // },
 };
 
 // === ESTOQUE ===
@@ -1473,11 +1496,11 @@ export const testeConectividade = {
   },
 };
 
-
 export const dashboardService = {
-  async obterDadosCompletos(
-    filtros?: { data_inicio?: string; data_fim?: string }
-  ): Promise<any> {
+  async obterDadosCompletos(filtros?: {
+    data_inicio?: string;
+    data_fim?: string;
+  }): Promise<any> {
     try {
       console.log("🔄 Carregando dados completos do dashboard...");
 
@@ -1565,7 +1588,6 @@ export const dashboardService = {
     }
   },
 };
-
 
 // Serviços de Relatórios Financeiros
 export const relatoriosService = {

@@ -56,7 +56,8 @@ function obterDataPedido(venda: Venda): string {
 export function SeparacaoPage() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [vendaSelecionada, setVendaSelecionada] = useState<Venda | null>(null);
-  const [pesosReais, setPesosReais] = useState<Record<number, number>>({});
+  // Controlar como string para permitir apagar e digitar normalmente
+  const [pesosReais, setPesosReais] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [processando, setProcessando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,21 +103,18 @@ export function SeparacaoPage() {
 
   const selecionarVenda = (venda: Venda) => {
     setVendaSelecionada(venda);
-    const pesosIniciais: Record<number, number> = {};
+    const pesosIniciais: Record<number, string> = {};
     venda.itens?.forEach((item) => {
-      pesosIniciais[item.produto_id] = toNumber(item.quantidade);
+      pesosIniciais[item.produto_id] = String(item.quantidade ?? "");
     });
     setPesosReais(pesosIniciais);
   };
 
-  const atualizarPesoReal = (produtoId: number, peso: number) => {
-    if (isNaN(peso) || peso < 0) {
-      console.warn(`Peso inválido para produto ${produtoId}: ${peso}`);
-      return;
-    }
+  const atualizarPesoReal = (produtoId: number, valor: string) => {
+    // Permitir string vazia para apagar
     setPesosReais((prev) => ({
       ...prev,
-      [produtoId]: peso,
+      [produtoId]: valor.replace(/[^0-9.,]/g, ""),
     }));
   };
 
@@ -129,8 +127,11 @@ export function SeparacaoPage() {
 
       const itensSeparacao: FormSeparacaoItem[] =
         vendaSelecionada.itens?.map((item) => {
+          const valorStr = pesosReais[item.produto_id];
           const quantidadeReal =
-            pesosReais[item.produto_id] || toNumber(item.quantidade);
+            valorStr !== undefined && valorStr !== ""
+              ? parseFloat(valorStr.replace(",", "."))
+              : toNumber(item.quantidade);
           if (isNaN(quantidadeReal) || quantidadeReal <= 0) {
             throw new Error(
               `Quantidade inválida para o produto ${
@@ -140,7 +141,7 @@ export function SeparacaoPage() {
           }
           return {
             produto_id: item.produto_id,
-            quantidade_real: Number(quantidadeReal),
+            quantidade_real: quantidadeReal,
           };
         }) || [];
 
@@ -402,26 +403,26 @@ export function SeparacaoPage() {
                           Peso/Quantidade Real:
                         </label>
                         <Input
-                          type="number"
-                          step="0.001"
-                          min="0"
-                          value={
-                            pesosReais[item.produto_id] !== undefined
-                              ? pesosReais[item.produto_id]
-                              : toNumber(item.quantidade)
+                          type="text"
+                          inputMode="decimal"
+                          pattern="[0-9]*[.,]?[0-9]*"
+                          value={pesosReais[item.produto_id] ?? ""}
+                          onChange={(e) =>
+                            atualizarPesoReal(item.produto_id, e.target.value)
                           }
-                          onChange={(e) => {
-                            const valor = parseFloat(e.target.value);
-                            if (!isNaN(valor) && valor >= 0) {
-                              atualizarPesoReal(item.produto_id, valor);
-                            }
-                          }}
                           placeholder={`Peso real em ${item.tipo_medida}`}
                           className="w-full"
                           required
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Quantidade pedida: {item.quantidade}{" "}
+                          {item.tipo_medida}
+                        </p>
                         {pesosReais[item.produto_id] !== undefined &&
-                          pesosReais[item.produto_id] <= 0 && (
+                          pesosReais[item.produto_id] !== "" &&
+                          parseFloat(
+                            pesosReais[item.produto_id].replace(",", ".")
+                          ) <= 0 && (
                             <p className="text-red-500 text-sm mt-1">
                               O peso deve ser maior que zero
                             </p>

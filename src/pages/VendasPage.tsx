@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+// Modal de produtos da venda
+
+import React, { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,13 @@ import type {
   FormItemVenda,
   TipoMedida,
 } from "@/types";
+import { MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 export function VendasPage() {
   const [vendas, setVendas] = useState<Venda[]>([]);
@@ -28,6 +37,7 @@ export function VendasPage() {
   const [showForm, setShowForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [vendaDetalhes, setVendaDetalhes] = useState<Venda | null>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroPagamento, setFiltroPagamento] = useState<
     "Todos" | "Pago" | "Pendente"
@@ -36,6 +46,16 @@ export function VendasPage() {
     "Todos" | "A separar" | "Separado"
   >("Todos");
 
+  useEffect(() => {
+    carregarDados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [produtosModal, setProdutosModal] = useState<{
+    open: boolean;
+    itens: any[];
+  }>({ open: false, itens: [] });
+
   // Estado do formulário
   const [formData, setFormData] = useState<FormVenda>({
     cliente_id: 0,
@@ -43,16 +63,45 @@ export function VendasPage() {
     observacoes: "",
   });
 
-  const [novoItem, setNovoItem] = useState<FormItemVenda>({
+  // Para permitir apagar o zero, quantidade é string no input
+  const [novoItem, setNovoItem] = useState<
+    Omit<FormItemVenda, "quantidade"> & { quantidade: string }
+  >({
     produto_id: 0,
-    quantidade: 0,
+    quantidade: "",
     tipo_medida: "kg",
     valor_unitario: 0,
   });
 
-  useEffect(() => {
-    carregarDados();
-  }, []);
+  // Excluir venda
+  const excluirVenda = async (vendaId: number) => {
+    if (
+      !window.confirm(
+        "Tem certeza que deseja excluir esta venda? Esta ação não pode ser desfeita e só é permitida para vendas criadas há menos de 24h."
+      )
+    ) {
+      return;
+    }
+    try {
+      setFormProcessing(true);
+      await vendasService.excluir(vendaId);
+      toast({
+        title: "Venda excluída",
+        description:
+          "A venda foi excluída e os produtos retornaram ao estoque.",
+      });
+      await carregarVendas();
+    } catch (error: any) {
+      console.error("Erro ao excluir venda:", error);
+      toast({
+        title: "Erro ao excluir venda",
+        description: error?.message || "Não foi possível excluir a venda.",
+        variant: "destructive",
+      });
+    } finally {
+      setFormProcessing(false);
+    }
+  };
 
   const carregarDados = async () => {
     try {
@@ -142,6 +191,14 @@ export function VendasPage() {
       return;
     }
 
+    if (
+      !window.confirm(
+        "Tem certeza que deseja ENVIAR para separação esta venda?"
+      )
+    ) {
+      return;
+    }
+
     try {
       setFormProcessing(true);
       await vendasService.criar(formData);
@@ -172,6 +229,10 @@ export function VendasPage() {
         description: "Por favor, adicione pelo menos um produto.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!window.confirm("Tem certeza que deseja GERAR uma venda rápida?")) {
       return;
     }
 
@@ -217,7 +278,8 @@ export function VendasPage() {
       return;
     }
 
-    if (!novoItem.quantidade || novoItem.quantidade <= 0) {
+    const quantidadeNum = parseFloat(novoItem.quantidade.replace(",", "."));
+    if (!novoItem.quantidade || isNaN(quantidadeNum) || quantidadeNum <= 0) {
       alert("Por favor, informe uma quantidade válida");
       return;
     }
@@ -248,7 +310,7 @@ export function VendasPage() {
     // Criar item com preço automático do produto e tipo de medida
     const itemCompleto: FormItemVenda = {
       produto_id: novoItem.produto_id,
-      quantidade: novoItem.quantidade,
+      quantidade: quantidadeNum,
       tipo_medida: produto.tipo_medida, // Converter para formato da API
       valor_unitario: produto.preco_venda,
     };
@@ -260,7 +322,7 @@ export function VendasPage() {
 
     setNovoItem({
       produto_id: 0,
-      quantidade: 0,
+      quantidade: "",
       tipo_medida: "kg",
       valor_unitario: 0,
     });
@@ -288,7 +350,7 @@ export function VendasPage() {
     });
     setNovoItem({
       produto_id: 0,
-      quantidade: 0,
+      quantidade: "",
       tipo_medida: "kg",
       valor_unitario: 0,
     });
@@ -857,15 +919,17 @@ export function VendasPage() {
                         Quantidade Pedida
                       </label>
                       <Input
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*[.,]?[0-9]*"
                         value={novoItem.quantidade}
                         onChange={(e) =>
                           setNovoItem((prev) => ({
                             ...prev,
-                            quantidade: parseFloat(e.target.value) || 0,
+                            quantidade: e.target.value.replace(/[^0-9.,]/g, ""),
                           }))
                         }
+                        placeholder="Quantidade"
                       />
                     </div>
 
@@ -983,83 +1047,139 @@ export function VendasPage() {
       {/* Lista de Vendas */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {/* Versão Desktop */}
-        <div className="hidden lg:block overflow-x-auto">
+        <div className="hidden lg:block">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Data
+                  Cliente / Data
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cliente
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produtos
+                  Itens
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Separado por
+                  Separação
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Pagamento
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ações
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {vendasFiltradas.map((venda) => {
-                // Priorizar cliente do objeto completo da API, depois busca local
                 const clienteInfo =
                   venda.cliente ||
-                  (clientes || []).find((c) => c.id === venda.cliente_id);
+                  (venda.cliente_id
+                    ? clientes.find((c) => c.id === venda.cliente_id)
+                    : null);
                 return (
-                  <tr key={venda.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatarData(venda.data_venda)}
-                    </td>
+                  <tr
+                    key={venda.id}
+                    className="hover:bg-gray-50 transition-colors duration-150"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {clienteInfo?.nome ||
-                            venda.cliente_nome ||
-                            "Cliente não encontrado"}
-                        </div>
-                        {clienteInfo?.nome_fantasia && (
-                          <div className="text-sm text-gray-500">
-                            {clienteInfo.nome_fantasia}
+                      <div className="flex items-center">
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            {clienteInfo?.nome ||
+                              venda.cliente_nome ||
+                              "Venda Balcão"}
                           </div>
-                        )}
+                          <div className="text-xs text-gray-500">
+                            {formatarData(venda.data_venda)}
+                          </div>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {(venda.itens || []).map((item: any, index: number) => {
-                          // Priorizar produto do objeto completo da API, depois busca local
-                          const produtoInfo =
-                            item.produto ||
-                            (produtos || []).find(
-                              (p) => p.id === item.produto_id
-                            );
-                          return (
-                            <div key={index}>
-                              {produtoInfo?.nome ||
-                                item.produto_nome ||
-                                "Produto não encontrado"}{" "}
-                              ({item.quantidade_real || item.quantidade}{" "}
-                              {item.tipo_medida || produtoInfo?.tipo_medida})
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <button
+                        className="text-blue-600 hover:text-blue-800 underline"
+                        onClick={() =>
+                          setProdutosModal({ open: true, itens: venda.itens })
+                        }
+                      >
+                        {venda.itens.length}{" "}
+                        {venda.itens.length > 1 ? "itens" : "item"}
+                      </button>
+                      {/* Modal de Produtos da Venda */}
+                      {produtosModal.open && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+                            <div className="p-6">
+                              <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-semibold">
+                                  Produtos da Venda
+                                </h2>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    setProdutosModal({ open: false, itens: [] })
+                                  }
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                  <thead className="bg-gray-50">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                                        Produto
+                                      </th>
+                                      <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                                        Qtd.
+                                      </th>
+                                      <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                                        Qtd. Real
+                                      </th>
+                                      <th className="px-4 py-2 text-left font-medium text-gray-500 uppercase tracking-wider">
+                                        Medida
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {produtosModal.itens.map((item, idx) => {
+                                      const produtoInfo =
+                                        item.produto ||
+                                        produtos.find(
+                                          (p) => p.id === item.produto_id
+                                        );
+                                      return (
+                                        <tr key={idx}>
+                                          <td className="px-4 py-2 font-medium">
+                                            {produtoInfo?.nome ||
+                                              item.produto_nome ||
+                                              "N/A"}
+                                          </td>
+                                          <td className="px-4 py-2">
+                                            {item.quantidade}
+                                          </td>
+                                          <td className="px-4 py-2">
+                                            {item.quantidade_real ?? "-"}
+                                          </td>
+                                          <td className="px-4 py-2 text-gray-600">
+                                            {item.tipo_medida ||
+                                              produtoInfo?.tipo_medida}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                        </div>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-800">
                       {formatarMoeda(Number(venda.total_venda))}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -1073,59 +1193,52 @@ export function VendasPage() {
                         {venda.situacao_pedido}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {venda.funcionario_separacao ? (
-                        <div>
-                          <div className="font-medium">
-                            {venda.funcionario_separacao.nome}
-                          </div>
-                          {venda.data_separacao && (
-                            <div className="text-xs text-gray-500">
-                              {formatarDataHora(venda.data_separacao)}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           venda.situacao_pagamento === "Pago"
                             ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
+                            : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {venda.situacao_pagamento?.toUpperCase() || "PENDENTE"}
+                        {venda.situacao_pagamento || "Pendente"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => verDetalhes(venda.id)}
-                        >
-                          Ver Detalhes
-                        </Button>
-                        {venda.situacao_pagamento === "Pendente" && (
-                          <Button
-                            size="sm"
-                            onClick={() => marcarComoPago(venda.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            Marcar como Pago
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Abrir menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          onClick={() => gerarPDF(venda)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          📄 PDF
-                        </Button>
-                      </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {/* <DropdownMenuLabel>Ações</DropdownMenuLabel> */}
+                          <DropdownMenuItem
+                            onClick={() => verDetalhes(venda.id)}
+                          >
+                            Ver Detalhes
+                          </DropdownMenuItem>
+                          {venda.situacao_pagamento !== "Pago" && (
+                            <DropdownMenuItem
+                              onClick={() => marcarComoPago(venda.id)}
+                            >
+                              Marcar como Pago
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => gerarPDF(venda)}>
+                            Gerar PDF
+                          </DropdownMenuItem>
+                          {/* <DropdownMenuSeparator /> */}
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                            onClick={() => excluirVenda(venda.id)}
+                            disabled={formProcessing}
+                          >
+                            Excluir Venda
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 );
@@ -1241,6 +1354,14 @@ export function VendasPage() {
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     📄 PDF
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => excluirVenda(venda.id)}
+                    disabled={formProcessing}
+                  >
+                    Excluir
                   </Button>
                 </div>
               </div>
