@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { estoqueService, relatoriosService } from "@/services/api";
+import { estoqueService, dashboardService } from "@/services/api";
 import type { AlertasEstoque, DashboardVendas } from "@/types";
 
 // --- Componentes ---
@@ -160,28 +160,33 @@ export default function DashboardPage() {
   }, [periodoSelecionado]);
 
   const carregarDashboard = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const hoje = new Date();
-      const dataInicio = new Date(hoje);
-      if (periodoSelecionado > 0) {
-        dataInicio.setDate(hoje.getDate() - periodoSelecionado);
-      }
-      const dataInicioFormatada = dataInicio.toISOString().split("T")[0];
-      const resultado = await relatoriosService.obterDashboardVendas({
-        data_inicio: dataInicioFormatada,
-      });
-      setDashboardData(resultado.data);
-    } catch (err) {
-      console.error("❌ Erro ao carregar dashboard:", err);
-      setError(
-        "Não foi possível carregar os dados do dashboard. Tente novamente."
-      );
-    } finally {
-      setLoading(false);
+  try {
+    setLoading(true);
+    setError(null);
+
+    const hoje = new Date();
+    const dataInicio = new Date(hoje);
+    if (periodoSelecionado > 0) {
+      dataInicio.setDate(hoje.getDate() - periodoSelecionado);
     }
-  };
+    const dataInicioFormatada = dataInicio.toISOString().split("T")[0];
+
+    // agora a chamada é no dashboardService
+    const resultado = await dashboardService.obterDadosCompletos({
+      data_inicio: dataInicioFormatada,
+    });
+
+    // resultado já tem { estatisticas, pedidos_pendentes, alertas_estoque }
+    setDashboardData(resultado);
+  } catch (err) {
+    console.error("❌ Erro ao carregar dashboard:", err);
+    setError(
+      "Não foi possível carregar os dados do dashboard. Tente novamente."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const carregarAlertas = async () => {
     try {

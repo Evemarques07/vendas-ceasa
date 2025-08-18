@@ -1493,10 +1493,13 @@ export function RelatoriosPage() {
 
             {dashboardVendas && (
               <div>
+                {/* KPIs - já corrigido antes, mas incluído para contexto */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">
-                      {formatarMoeda(dashboardVendas.kpis.faturamento_total)}
+                      {formatarMoeda(
+                        dashboardVendas?.kpis?.faturamento_total || 0
+                      )}
                     </div>
                     <div className="text-sm text-gray-500">
                       Faturamento Total
@@ -1504,19 +1507,22 @@ export function RelatoriosPage() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
-                      {dashboardVendas.kpis.total_vendas}
+                      {dashboardVendas?.kpis?.total_vendas || 0}
                     </div>
                     <div className="text-sm text-gray-500">Total de Vendas</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
-                      {formatarMoeda(dashboardVendas.kpis.ticket_medio)}
+                      {formatarMoeda(dashboardVendas?.kpis?.ticket_medio || 0)}
                     </div>
                     <div className="text-sm text-gray-500">Ticket Médio</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
-                      {dashboardVendas.kpis.taxa_inadimplencia.toFixed(1)}%
+                      {(dashboardVendas?.kpis?.taxa_inadimplencia || 0).toFixed(
+                        1
+                      )}
+                      %
                     </div>
                     <div className="text-sm text-gray-500">
                       Taxa Inadimplência
@@ -1524,12 +1530,12 @@ export function RelatoriosPage() {
                   </div>
                 </div>
 
-                {/* Top Clientes */}
-                {dashboardVendas.top_clientes.length > 0 && (
+                {/* Top Clientes - CORRIGIDO AGORA */}
+                {(dashboardVendas?.top_clientes?.length || 0) > 0 && (
                   <div className="mb-6">
                     <h4 className="text-md font-medium mb-3">Top Clientes</h4>
                     <div className="space-y-2">
-                      {dashboardVendas.top_clientes
+                      {(dashboardVendas?.top_clientes || []) // Fornece um array vazio como padrão
                         .slice(0, 5)
                         .map((cliente, index) => (
                           <div
@@ -1560,12 +1566,12 @@ export function RelatoriosPage() {
                   </div>
                 )}
 
-                {/* Top Produtos */}
-                {dashboardVendas.top_produtos.length > 0 && (
+                {/* Top Produtos - CORRIGIDO AGORA */}
+                {(dashboardVendas?.top_produtos?.length || 0) > 0 && (
                   <div className="mb-6">
                     <h4 className="text-md font-medium mb-3">Top Produtos</h4>
                     <div className="space-y-2">
-                      {dashboardVendas.top_produtos
+                      {(dashboardVendas?.top_produtos || []) // Fornece um array vazio como padrão
                         .slice(0, 5)
                         .map((produto, index) => (
                           <div

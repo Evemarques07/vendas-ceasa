@@ -32,6 +32,7 @@ import type {
   Rentabilidade,
   AlertasEstoque,
   TipoMedida,
+  VendaRapidaPayload,
 } from "@/types";
 
 // Configuração base da API
@@ -981,6 +982,7 @@ export const vendasService = {
       return handleApiError(error as AxiosError);
     }
   },
+  
 
   async atualizarSeparacao(
     id: number,
@@ -1150,6 +1152,11 @@ export const vendasService = {
       console.error("Erro ao marcar como pago:", error);
       return handleApiError(error as AxiosError);
     }
+  },
+
+  vendaRapida: async (data: VendaRapidaPayload) => {
+    const response = await api.post("/vendas/venda-rapida", data);
+    return response.data;
   },
 };
 
@@ -1466,151 +1473,99 @@ export const testeConectividade = {
   },
 };
 
-// Serviços do Dashboard
+
 export const dashboardService = {
-  async obterEstatisticas(): Promise<any> {
-    try {
-      console.log("🏠 Buscando estatísticas do dashboard...");
-
-      // Buscar dados reais das diferentes APIs
-      const [vendas, clientes, produtos] = await Promise.all([
-        vendasService.listar({
-          data_inicio: new Date().toISOString().split("T")[0],
-          data_fim: new Date().toISOString().split("T")[0],
-        }),
-        clientesService.listar({}),
-        produtosService.listar({}),
-      ]);
-
-      const estatisticas = {
-        pedidos_hoje: vendas.vendas?.length || 0,
-        vendas_mes:
-          vendas.vendas?.reduce(
-            (total: number, venda: Venda) =>
-              total +
-              (typeof venda.total_venda === "string"
-                ? parseFloat(venda.total_venda)
-                : venda.total_venda || 0),
-            0
-          ) || 0,
-        clientes_ativos: clientes.clientes?.length || 0,
-        produtos_estoque: produtos.produtos?.length || 0,
-      };
-
-      console.log("✅ Estatísticas carregadas:", estatisticas);
-      return estatisticas;
-    } catch (error) {
-      console.error("❌ Erro ao buscar estatísticas:", error);
-      return {
-        pedidos_hoje: 0,
-        vendas_mes: 0,
-        clientes_ativos: 0,
-        produtos_estoque: 0,
-      };
-    }
-  },
-
-  async obterPedidosPendentes(): Promise<any[]> {
-    try {
-      console.log("📋 Buscando pedidos pendentes e separados...");
-
-      // Buscar pedidos a separar e separados
-      const [pendentesResponse, separadosResponse] = await Promise.all([
-        vendasService.listar({
-          situacao_pedido: "A separar",
-          limit: 10,
-        }),
-        vendasService.listar({
-          situacao_pedido: "Separado",
-          limit: 10,
-        }),
-      ]);
-
-      const pedidosPendentes =
-        pendentesResponse.vendas?.map((venda: Venda) => ({
-          id: venda.id,
-          cliente_nome:
-            venda.cliente_nome ||
-            venda.cliente?.nome ||
-            "Cliente não informado",
-          quantidade_produtos: venda.itens?.length || 0,
-          situacao_pedido: venda.situacao_pedido,
-          situacao_pagamento: venda.situacao_pagamento,
-          data_criacao:
-            venda.data_venda || venda.data_pedido || venda.criado_em || "",
-          data_separacao: venda.data_separacao,
-        })) || [];
-
-      const pedidosSeparados =
-        separadosResponse.vendas?.map((venda: Venda) => ({
-          id: venda.id,
-          cliente_nome:
-            venda.cliente_nome ||
-            venda.cliente?.nome ||
-            "Cliente não informado",
-          quantidade_produtos: venda.itens?.length || 0,
-          situacao_pedido: venda.situacao_pedido,
-          situacao_pagamento: venda.situacao_pagamento,
-          data_criacao:
-            venda.data_venda || venda.data_pedido || venda.criado_em || "",
-          data_separacao: venda.data_separacao,
-        })) || [];
-
-      const todosPedidos = [...pedidosPendentes, ...pedidosSeparados];
-
-      console.log("✅ Pedidos carregados:", {
-        pendentes: pedidosPendentes.length,
-        separados: pedidosSeparados.length,
-        total: todosPedidos.length,
-      });
-      return todosPedidos;
-    } catch (error) {
-      console.error("❌ Erro ao buscar pedidos pendentes:", error);
-      return [];
-    }
-  },
-
-  async obterAlertasEstoque(): Promise<any[]> {
-    try {
-      console.log("📦 Buscando alertas de estoque...");
-
-      // Se houver endpoint específico para alertas, usar:
-      // const response = await api.get("/estoque/alertas");
-
-      // Por enquanto, retornamos array vazio até implementar o endpoint
-      console.log("⚠️ Endpoint de alertas de estoque não implementado");
-      return [];
-    } catch (error) {
-      console.error("❌ Erro ao buscar alertas de estoque:", error);
-      return [];
-    }
-  },
-
-  async obterDadosCompletos(): Promise<any> {
+  async obterDadosCompletos(
+    filtros?: { data_inicio?: string; data_fim?: string }
+  ): Promise<any> {
     try {
       console.log("🔄 Carregando dados completos do dashboard...");
 
-      const [estatisticas, pedidosPendentes, alertasEstoque] =
-        await Promise.all([
-          this.obterEstatisticas(),
-          this.obterPedidosPendentes(),
-          this.obterAlertasEstoque(),
-        ]);
+      const response = await api.get("/vendas/dashboard", {
+        params: filtros, // envia data_inicio/data_fim se vier
+      });
 
-      const dados = {
+      const data = response.data.data;
+
+      // Estatísticas simplificadas
+      const estatisticas = {
+        pedidos_hoje: data.vendas_periodo?.total_vendas || 0,
+        vendas_mes: data.vendas_mensais?.mes_atual?.valor_total || 0,
+        clientes_ativos: data.estatisticas_clientes?.clientes_ativos || 0,
+        produtos_estoque: 0, // se sua API devolver no futuro, só substituir
+      };
+
+      // Pedidos pendentes (em separação + separados)
+      const pedidosPendentes = [
+        ...(data.vendas_periodo?.em_separacao?.vendas || []),
+        ...(data.vendas_periodo?.separadas?.vendas || []),
+      ].map((venda: any) => ({
+        id: venda.id,
+        cliente_nome: venda.cliente || "Cliente não informado",
+        quantidade_produtos: venda.itens?.length || 1, // se a API não devolver itens, assume 1
+        situacao_pedido: venda.data_separacao ? "Separado" : "A separar",
+        situacao_pagamento: "Pendente", // pode trocar se API trouxer status real
+        data_criacao: venda.data_venda,
+        data_separacao: venda.data_separacao,
+      }));
+
+      // Pagamentos pendentes aproveitados como "alertas"
+      const alertasEstoque =
+        data.pagamentos_pendentes?.vendas?.map((venda: any) => ({
+          id: venda.id,
+          cliente_nome: venda.cliente,
+          valor: venda.valor,
+          dias_pendente: venda.dias_pendente,
+        })) || [];
+
+      // Retorno: mantém compatibilidade + novos campos
+      return {
+        ...data, // vendas_periodo, vendas_mensais, estatisticas_clientes, pagamentos_pendentes
         estatisticas,
         pedidos_pendentes: pedidosPendentes,
         alertas_estoque: alertasEstoque,
       };
-
-      console.log("✅ Dados completos do dashboard carregados");
-      return dados;
     } catch (error) {
       console.error("❌ Erro ao carregar dados do dashboard:", error);
-      throw error;
+      return {
+        vendas_periodo: {
+          total_vendas: 0,
+          valor_total: 0,
+          em_separacao: { quantidade: 0, valor: 0, vendas: [] },
+          separadas: { quantidade: 0, valor: 0, vendas: [] },
+        },
+        vendas_mensais: {
+          mes_atual: { quantidade: 0, valor_total: 0 },
+          mes_anterior: { quantidade: 0, valor_total: 0 },
+          comparacao: {
+            diferenca_quantidade: 0,
+            diferenca_valor: 0,
+            crescimento_percentual: 0,
+          },
+        },
+        estatisticas_clientes: {
+          total_clientes: 0,
+          clientes_ativos: 0,
+          clientes_inativos: 0,
+        },
+        pagamentos_pendentes: {
+          quantidade_vendas: 0,
+          valor_total: 0,
+          vendas: [],
+        },
+        estatisticas: {
+          pedidos_hoje: 0,
+          vendas_mes: 0,
+          clientes_ativos: 0,
+          produtos_estoque: 0,
+        },
+        pedidos_pendentes: [],
+        alertas_estoque: [],
+      };
     }
   },
 };
+
 
 // Serviços de Relatórios Financeiros
 export const relatoriosService = {
@@ -1698,7 +1653,7 @@ export const relatoriosService = {
       if (filtros?.data_inicio) params.data_inicio = filtros.data_inicio;
       if (filtros?.data_fim) params.data_fim = filtros.data_fim;
 
-      const response = await api.get<any>("/vendas/dashboard", {
+      const response = await api.get<any>("/relatorios/dashboard-vendas", {
         params,
       });
       console.log("✅ Dashboard de vendas carregado");

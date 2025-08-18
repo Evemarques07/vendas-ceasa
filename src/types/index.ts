@@ -184,6 +184,16 @@ export interface Venda {
   };
 }
 
+export interface VendaRapidaPayload  {
+  produtos: {
+    produto_id: number;
+    quantidade: number;
+    tipo_medida: string;
+  }[];
+  cliente_id?: number | null;
+  observacoes?: string;
+};
+
 // Interface da entrada de estoque
 export interface EntradaEstoque {
   id: number;

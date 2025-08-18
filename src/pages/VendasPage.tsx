@@ -24,6 +24,7 @@ export function VendasPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [formProcessing, setFormProcessing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [vendaDetalhes, setVendaDetalhes] = useState<Venda | null>(null);
@@ -124,41 +125,89 @@ export function VendasPage() {
 
     // Validações
     if (!formData.cliente_id || formData.cliente_id === 0) {
-      alert("Por favor, selecione um cliente");
+      toast({
+        title: "Atenção",
+        description: "Por favor, selecione um cliente.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!formData.itens || formData.itens.length === 0) {
-      alert("Por favor, adicione pelo menos um produto");
+      toast({
+        title: "Atenção",
+        description: "Por favor, adicione pelo menos um produto.",
+        variant: "destructive",
+      });
       return;
     }
 
-    // Validar se todos os produtos têm preço definido
-    for (const item of formData.itens) {
-      const produto = (produtos || []).find((p) => p.id === item.produto_id);
-      if (!produto || !produto.preco_venda || produto.preco_venda <= 0) {
-        alert(
-          `O produto ${
-            produto?.nome || "desconhecido"
-          } não possui preço de venda definido`
-        );
-        return;
-      }
-    }
-
     try {
-      console.log(
-        "Produtos disponíveis:",
-        produtos?.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco_venda }))
-      );
-      console.log("Form data:", formData);
-
+      setFormProcessing(true);
       await vendasService.criar(formData);
+      toast({
+        title: "Sucesso!",
+        description: "Venda enviada para separação.",
+      });
       await carregarVendas();
       resetForm();
     } catch (error) {
       console.error("Erro ao criar venda:", error);
-      alert("Erro ao criar venda. Verifique os dados e tente novamente.");
+      toast({
+        title: "Erro",
+        description:
+          "Erro ao criar venda. Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setFormProcessing(false);
+    }
+  };
+
+  const handleVendaRapida = async () => {
+    // Validação
+    if (!formData.itens || formData.itens.length === 0) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, adicione pelo menos um produto.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const payload = {
+      produtos: formData.itens.map((item) => ({
+        produto_id: item.produto_id,
+        quantidade: item.quantidade,
+        // O backend espera o tipo de medida em maiúsculo (ex: KG, UNIDADE)
+        tipo_medida: item.tipo_medida.toUpperCase(),
+      })),
+      // Envia null se nenhum cliente for selecionado
+      cliente_id: formData.cliente_id > 0 ? formData.cliente_id : null,
+      observacoes: formData.observacoes,
+    };
+
+    try {
+      setFormProcessing(true);
+      await vendasService.vendaRapida(payload);
+      toast({
+        title: "Sucesso!",
+        description: "Venda rápida realizada com sucesso.",
+      });
+      await carregarVendas();
+      resetForm();
+    } catch (error: any) {
+      console.error("Erro ao realizar venda rápida:", error);
+      const errorMessage =
+        error?.response?.data?.detail ||
+        "Erro ao realizar venda. Verifique o estoque e tente novamente.";
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setFormProcessing(false);
     }
   };
 
@@ -200,7 +249,7 @@ export function VendasPage() {
     const itemCompleto: FormItemVenda = {
       produto_id: novoItem.produto_id,
       quantidade: novoItem.quantidade,
-      tipo_medida: mapearTipoMedida(produto.tipo_medida), // Converter para formato da API
+      tipo_medida: produto.tipo_medida, // Converter para formato da API
       valor_unitario: produto.preco_venda,
     };
 
@@ -215,12 +264,6 @@ export function VendasPage() {
       tipo_medida: "kg",
       valor_unitario: 0,
     });
-  };
-
-  // Função para mapear tipo de medida para API
-  const mapearTipoMedida = (tipoMedida: TipoMedida): string => {
-    // Agora os valores são padronizados, então retorna direto
-    return tipoMedida;
   };
 
   const removerItem = (index: number) => {
@@ -296,14 +339,22 @@ export function VendasPage() {
   };
 
   const vendasFiltradas = (vendas || []).filter((venda) => {
-    // Para filtrar, vamos buscar o cliente pelo ID
-    const cliente = (clientes || []).find((c) => c.id === venda.cliente_id);
+    // Buscar o cliente pelo ID, se não houver, considerar 'Venda de Balcão'
+    let cliente = (clientes || []).find((c) => c.id === venda.cliente_id);
+    let clienteNome = cliente?.nome || venda.cliente_nome;
+    let clienteFantasia = cliente?.nome_fantasia;
+
+    // Se não houver cliente_id ou cliente não encontrado, tratar como Venda de Balcão
+    if (!venda.cliente_id || !clienteNome) {
+      clienteNome = "Venda de Balcão";
+      clienteFantasia = "";
+    }
+
     const clienteMatch =
-      cliente &&
-      (cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cliente.nome_fantasia
-          ?.toLowerCase()
-          .includes(searchTerm.toLowerCase()));
+      (clienteNome &&
+        clienteNome.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (clienteFantasia &&
+        clienteFantasia.toLowerCase().includes(searchTerm.toLowerCase()));
 
     // Filtrar por pagamento
     const pagamentoMatch =
@@ -750,7 +801,7 @@ export function VendasPage() {
                 {/* Seleção do Cliente */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cliente *
+                    Cliente (Opcional para Venda Rápida)
                   </label>
                   <select
                     value={formData.cliente_id}
@@ -761,7 +812,7 @@ export function VendasPage() {
                       }))
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
+                    // required
                   >
                     <option value="">Selecione um cliente</option>
                     {(clientes || []).map((cliente) => (
@@ -897,12 +948,30 @@ export function VendasPage() {
                   />
                 </div>
 
-                <div className="flex gap-2 justify-end pt-4">
-                  <Button type="button" variant="outline" onClick={resetForm}>
+                <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetForm}
+                    disabled={formProcessing}
+                  >
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={formData.itens.length === 0}>
-                    Criar Venda
+                  {/* Botão para Venda Rápida (balcão) */}
+                  <Button
+                    type="button"
+                    onClick={handleVendaRapida}
+                    disabled={formProcessing || formData.itens.length === 0}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {formProcessing ? <Loading /> : "Gerar Venda (Rápida)"}
+                  </Button>
+                  {/* Botão para Venda a ser separada */}
+                  <Button
+                    type="submit"
+                    disabled={formProcessing || formData.itens.length === 0}
+                  >
+                    {formProcessing ? <Loading /> : "Enviar para Separação"}
                   </Button>
                 </div>
               </form>
