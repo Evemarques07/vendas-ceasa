@@ -1,16 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/Input";
 import { Loading } from "@/components/Loading";
 import { produtosService } from "@/services/api";
 import type {
-  Produto as ProdutoOrig,
-  FormProduto as FormProdutoOrig,
+  Produto as ProdutoApi,
+  FormProduto as FormProdutoApi,
 } from "@/types";
 import {
   FiPlus,
   FiRefreshCw,
-  FiSearch,
   FiX,
   FiAlertCircle,
   FiCheckCircle,
@@ -18,15 +17,18 @@ import {
   FiTrash2,
   FiEdit,
   FiImage,
-} from "react-icons/fi"; // Usando react-icons para ícones
+  FiUpload,
+  FiXCircle,
+} from "react-icons/fi";
 
-// Componente para notificações (toast)
+const API_BASE_URL = "https://www.evertonmarques.com.br/api";
+// const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
+
 type NotificationProps = {
   message: string;
   type: "success" | "error";
   onDismiss: () => void;
 };
-
 const Notification = ({ message, type, onDismiss }: NotificationProps) => (
   <div
     className={`fixed top-5 right-5 z-[100] flex items-center gap-4 rounded-lg bg-white p-4 shadow-lg ring-1 ring-black ring-opacity-5 transition-transform transform ${
@@ -45,6 +47,9 @@ const Notification = ({ message, type, onDismiss }: NotificationProps) => (
   </div>
 );
 
+type Produto = ProdutoApi & { tem_imagem?: boolean };
+type FormProduto = Omit<FormProdutoApi, "imagem">;
+
 export function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,13 +61,6 @@ export function ProdutosPage() {
     message: string;
     type: "success" | "error";
   } | null>(null);
-
-  // Estado do formulário
-  // Ajuste de tipos locais para refletir imagem como string
-  type Produto = Omit<ProdutoOrig, "imagem"> & { imagem?: string };
-  type FormProduto = Omit<FormProdutoOrig, "imagem"> & {
-    imagem?: string | undefined;
-  };
 
   const [formData, setFormData] = useState<
     Omit<FormProduto, "preco_venda" | "estoque_minimo"> & {
@@ -76,27 +74,26 @@ export function ProdutosPage() {
     tipo_medida: "kg",
     estoque_minimo: "",
     ativo: true,
-    imagem: "",
   });
+
+  const [imagemArquivo, setImagemArquivo] = useState<File | null>(null);
+  const [imagemRemovida, setImagemRemovida] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showNotification = (message: string, type: "success" | "error") => {
     setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000); // Auto-dismiss after 5s
+    setTimeout(() => setNotification(null), 5000);
   };
 
   const carregarProdutos = useCallback(async () => {
     try {
-      console.log("=== CARREGANDO PRODUTOS ===");
       setLoading(true);
       const resultado = await produtosService.listar();
       setProdutos(resultado.produtos || []);
     } catch (error) {
-      console.error("=== ERRO AO CARREGAR PRODUTOS ===", error);
-      showNotification(
-        "Falha ao carregar produtos. Verifique a conexão com a API.",
-        "error"
-      );
+      console.error("Erro ao carregar produtos:", error);
+      showNotification("Falha ao carregar produtos.", "error");
       setProdutos([]);
     } finally {
       setLoading(false);
@@ -110,7 +107,6 @@ export function ProdutosPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Conversão dos campos string para número
     const precoVendaNum = parseFloat(formData.preco_venda.replace(",", "."));
     const estoqueMinNum = formData.estoque_minimo
       ? parseInt(formData.estoque_minimo)
@@ -119,50 +115,36 @@ export function ProdutosPage() {
       !formData.nome.trim() ||
       !formData.preco_venda ||
       isNaN(precoVendaNum) ||
-      precoVendaNum <= 0 ||
-      !formData.tipo_medida
+      precoVendaNum <= 0
     ) {
       showNotification(
-        "Preencha todos os campos obrigatórios corretamente.",
+        "Preencha os campos obrigatórios corretamente.",
         "error"
       );
       return;
     }
-
+    const dadosProduto = {
+      ...formData,
+      preco_venda: precoVendaNum,
+      estoque_minimo: estoqueMinNum,
+    };
     try {
-      const action = editingProduto ? "atualizado" : "cadastrado";
       if (editingProduto) {
-        // Atualiza dados principais (exceto imagem)
-        await produtosService.atualizar(editingProduto.id, {
-          ...formData,
-          preco_venda: precoVendaNum,
-          estoque_minimo: estoqueMinNum,
-          imagem: undefined, // Não enviar imagem no PUT principal
-        });
-        // Se a imagem foi alterada e não está vazia, atualiza via endpoint próprio
-        if (
-          formData.imagem &&
-          formData.imagem.trim() !== "" &&
-          formData.imagem !== editingProduto.imagem
-        ) {
-          await produtosService.atualizarImagem(
-            editingProduto.id,
-            formData.imagem
-          );
+        await produtosService.atualizar(editingProduto.id, dadosProduto);
+        if (imagemArquivo) {
+          await produtosService.uploadImagem(editingProduto.id, imagemArquivo);
+        } else if (imagemRemovida) {
+          await produtosService.deletarImagem(editingProduto.id);
         }
+        showNotification("Produto atualizado com sucesso!", "success");
       } else {
-        // Só envia o campo imagem se houver URL preenchida
-        const dadosParaCriar = {
-          ...formData,
-          preco_venda: precoVendaNum,
-          estoque_minimo: estoqueMinNum,
-        };
-        if (!formData.imagem || formData.imagem.trim() === "") {
-          delete (dadosParaCriar as any).imagem;
+        const response = await produtosService.criar(dadosProduto as any);
+        const novoProdutoId = response.id;
+        if (imagemArquivo && novoProdutoId) {
+          await produtosService.uploadImagem(novoProdutoId, imagemArquivo);
         }
-        await produtosService.criar(dadosParaCriar as any);
+        showNotification("Produto cadastrado com sucesso!", "success");
       }
-      showNotification(`Produto ${action} com sucesso!`, "success");
       await carregarProdutos();
       resetForm();
     } catch (error) {
@@ -180,14 +162,19 @@ export function ProdutosPage() {
       tipo_medida: produto.tipo_medida,
       estoque_minimo: String(produto.estoque_minimo ?? ""),
       ativo: produto.ativo,
-      imagem: produto.imagem || "",
     });
-    setPreviewImage(produto.imagem || null);
+    if (produto.tem_imagem) {
+      setPreviewImage(
+        `${API_BASE_URL}/produtos/imagem/${
+          produto.id
+        }?t=${new Date().getTime()}`
+      );
+    }
     setShowForm(true);
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm("Tem certeza que deseja excluir este produto?")) {
+    if (window.confirm("Tem certeza que deseja excluir este produto?")) {
       try {
         await produtosService.excluir(id);
         showNotification("Produto excluído com sucesso!", "success");
@@ -199,11 +186,22 @@ export function ProdutosPage() {
     }
   };
 
-  // Agora a imagem é apenas uma URL
-  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const url = e.target.value;
-    setFormData((prev) => ({ ...prev, imagem: url }));
-    setPreviewImage(url || null);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImagemArquivo(file);
+      setImagemRemovida(false);
+      setPreviewImage(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setPreviewImage(null);
+    setImagemArquivo(null);
+    setImagemRemovida(true);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const resetForm = () => {
@@ -214,11 +212,15 @@ export function ProdutosPage() {
       tipo_medida: "kg",
       estoque_minimo: "",
       ativo: true,
-      imagem: "",
     });
     setPreviewImage(null);
     setEditingProduto(null);
     setShowForm(false);
+    setImagemArquivo(null);
+    setImagemRemovida(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleRecarregar = () => {
@@ -253,20 +255,14 @@ export function ProdutosPage() {
         />
       )}
 
-      {/* Modal do Formulário */}
       {showForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <form onSubmit={handleSubmit} className="flex flex-col h-full">
               <div className="p-6 border-b">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    {editingProduto ? "Editar Produto" : "Novo Produto"}
-                  </h2>
-                  <Button variant="ghost" onClick={resetForm} size="sm">
-                    <FiX className="h-5 w-5" />
-                  </Button>
-                </div>
+                <h2 className="text-xl font-semibold">
+                  {editingProduto ? "Editar Produto" : "Novo Produto"}
+                </h2>
               </div>
 
               <div className="p-6 space-y-4 overflow-y-auto">
@@ -298,7 +294,7 @@ export function ProdutosPage() {
                         preco_venda: e.target.value.replace(/[^0-9.,]/g, ""),
                       }))
                     }
-                    placeholder="Preço de venda"
+                    placeholder="Ex: 10,50"
                     required
                   />
                   <div>
@@ -326,7 +322,7 @@ export function ProdutosPage() {
                   </div>
                 </div>
                 <Input
-                  label="Estoque Mínimo"
+                  label="Estoque Mínimo (Opcional)"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -337,36 +333,57 @@ export function ProdutosPage() {
                       estoque_minimo: e.target.value.replace(/[^0-9]/g, ""),
                     }))
                   }
-                  placeholder="Estoque mínimo"
+                  placeholder="Ex: 5"
                 />
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    URL da Imagem
+                    Imagem do Produto
                   </label>
                   <div className="flex items-center gap-4">
-                    {previewImage ? (
-                      <img
-                        src={previewImage}
-                        alt="Preview"
-                        className="w-20 h-20 object-cover rounded-lg border"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
+                    <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 relative border">
+                      {previewImage ? (
+                        <>
+                          <img
+                            src={previewImage}
+                            alt="Preview"
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRemoveImage}
+                            className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-md text-red-500 hover:bg-red-50"
+                          >
+                            <FiXCircle className="w-5 h-5" />
+                          </button>
+                        </>
+                      ) : (
+                        <FiImage className="w-10 h-10" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg, image/jpg"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
                       />
-                    ) : (
-                      <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                        <FiImage className="w-8 h-8" />
-                      </div>
-                    )}
-                    <Input
-                      type="text"
-                      placeholder="Cole a URL da imagem"
-                      value={formData.imagem ?? ""}
-                      onChange={handleImageUrlChange}
-                      className="text-sm"
-                    />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <FiUpload className="mr-2 h-4 w-4" />
+                        Selecionar Imagem
+                      </Button>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Envie arquivos JPG, PNG ou JPEG.
+                      </p>
+                    </div>
                   </div>
                 </div>
+
                 <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                   <span className="text-sm font-medium text-gray-700">
                     Produto Ativo
@@ -415,117 +432,104 @@ export function ProdutosPage() {
               onClick={handleRecarregar}
               variant="outline"
               disabled={reloading}
-              className="flex-1 sm:flex-none"
             >
               <FiRefreshCw
                 className={`h-4 w-4 ${reloading ? "animate-spin" : ""}`}
               />
             </Button>
-            <Button
-              onClick={() => setShowForm(true)}
-              className="flex-1 sm:flex-none"
-            >
+            <Button onClick={() => setShowForm(true)}>
               <FiPlus className="h-4 w-4 mr-2" /> Novo Produto
             </Button>
           </div>
         </header>
 
-        {/* Busca */}
         <div className="mb-8">
-          <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <Input
-              placeholder="Buscar por nome ou descrição..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:max-w-md pl-10"
-            />
-          </div>
+          <Input
+            placeholder="Buscar por nome ou descrição..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full sm:max-w-md"
+          />
         </div>
 
-        {/* Grid de Produtos */}
         {produtosFiltrados.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {produtosFiltrados.map((p) => (
-              <div
-                key={p.id}
-                className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col group transition-all hover:shadow-xl hover:-translate-y-1"
-              >
-                <div className="relative">
-                  <div className="aspect-w-1 aspect-h-1 bg-gray-100 flex items-center justify-center">
-                    {p.imagem && p.imagem.trim() !== "" ? (
-                      <div className="w-28 h-28 flex items-center justify-center mx-auto">
-                        <img
-                          src={p.imagem}
-                          alt={p.descricao || p.nome}
-                          className="w-full h-full object-cover rounded-lg border"
-                          style={{
-                            minWidth: "7rem",
-                            minHeight: "7rem",
-                            maxWidth: "7rem",
-                            maxHeight: "7rem",
-                          }}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display =
-                              "none";
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-28 h-28 flex items-center justify-center mx-auto bg-gray-100 rounded-lg">
-                        <FiPackage className="w-16 h-16 text-gray-300" />
+            {produtosFiltrados.map((p) => {
+              const imageUrl = `${API_BASE_URL}/produtos/imagem/${
+                p.id
+              }?t=${new Date().getTime()}`;
+              return (
+                <div
+                  key={p.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col group transition-all hover:shadow-xl hover:-translate-y-1"
+                >
+                  <div className="relative">
+                    <div className="aspect-w-1 aspect-h-1 w-full h-48 bg-gray-100 flex items-center justify-center">
+                      <img
+                        src={imageUrl}
+                        alt={p.nome}
+                        className="w-full h-full object-cover"
+                        style={{ display: "block" }}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.style.display = "none";
+                          const fallback = document.createElement("div");
+                          fallback.className =
+                            "flex items-center justify-center w-full h-full";
+                          fallback.innerHTML = `<svg class='w-16 h-16 text-gray-300' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' /></svg>`;
+                          e.currentTarget.parentNode?.appendChild(fallback);
+                        }}
+                      />
+                    </div>
+                    <span
+                      className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full text-white ${
+                        p.ativo ? "bg-green-500" : "bg-gray-500"
+                      }`}
+                    >
+                      {p.ativo ? "Ativo" : "Inativo"}
+                    </span>
+                  </div>
+                  <div className="p-4 flex flex-col flex-grow">
+                    <h3 className="font-bold text-lg text-gray-800 mb-1 truncate">
+                      {p.nome}
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-3 flex-grow h-10">
+                      {p.descricao}
+                    </p>
+                    <div className="text-xl font-semibold text-gray-900 mb-3">
+                      {formatCurrency(p.preco_venda)}{" "}
+                      <span className="text-sm font-normal text-gray-500">
+                        / {p.tipo_medida}
+                      </span>
+                    </div>
+                    {p.estoque_minimo && (
+                      <div className="flex items-center gap-2 text-yellow-600 text-xs mb-3 p-2 bg-yellow-50 rounded-md">
+                        <FiAlertCircle />
+                        <span>Estoque mínimo: {p.estoque_minimo}</span>
                       </div>
                     )}
                   </div>
-                  <span
-                    className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full text-white ${
-                      p.ativo ? "bg-green-500" : "bg-gray-500"
-                    }`}
-                  >
-                    {p.ativo ? "Ativo" : "Inativo"}
-                  </span>
-                </div>
-                <div className="p-4 flex flex-col flex-grow">
-                  <h3 className="font-bold text-lg text-gray-800 mb-1 truncate">
-                    {p.nome}
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-3 flex-grow h-10">
-                    {p.descricao}
-                  </p>
-                  <div className="text-xl font-semibold text-gray-900 mb-3">
-                    {formatCurrency(p.preco_venda)}{" "}
-                    <span className="text-sm font-normal text-gray-500">
-                      / {p.tipo_medida}
-                    </span>
+                  <div className="p-4 bg-gray-50/70 flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(p)}
+                      className="flex-1"
+                    >
+                      <FiEdit className="mr-2 h-4 w-4" /> Editar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(p.id)}
+                      className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                    >
+                      <FiTrash2 />
+                    </Button>
                   </div>
-
-                  {p.estoque_minimo && (
-                    <div className="flex items-center gap-2 text-yellow-600 text-xs mb-3 p-2 bg-yellow-50 rounded-md">
-                      <FiAlertCircle />
-                      <span>Estoque mínimo: {p.estoque_minimo}</span>
-                    </div>
-                  )}
                 </div>
-                <div className="p-4 bg-gray-50/70 flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(p)}
-                    className="flex-1"
-                  >
-                    <FiEdit className="mr-2 h-4 w-4" /> Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(p.id)}
-                    className="text-gray-400 hover:text-red-600 hover:bg-red-50"
-                  >
-                    <FiTrash2 />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-16 px-6 bg-gray-50 rounded-lg">
@@ -537,7 +541,7 @@ export function ProdutosPage() {
             </h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm
-                ? "Tente uma busca diferente ou limpe o filtro."
+                ? "Tente uma busca diferente."
                 : "Comece adicionando seu primeiro produto."}
             </p>
             {!searchTerm && (

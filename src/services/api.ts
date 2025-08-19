@@ -556,8 +556,7 @@ export const produtosService = {
       return handleApiError(error as AxiosError);
     }
   },
-  //const response = await api
-  // agora envia a url da imagem
+  
   async criar(dados: FormProduto): Promise<Produto> {
     try {
       console.log("=== CRIANDO PRODUTO ===");
@@ -773,6 +772,46 @@ export const produtosService = {
     } catch (error) {
       console.error("=== ERRO NA EXCLUSÃO ===");
       console.error("Erro ao excluir produto:", error);
+      return handleApiError(error as AxiosError);
+    }
+  },
+  /**
+   * Faz upload de uma imagem para o produto.
+   * @param produtoId ID do produto
+   * @param file Arquivo de imagem (File)
+   */
+  async uploadImagem(produtoId: number, file: File): Promise<{ message: string; filename: string; success: boolean }> {
+    try {
+      const formData = new FormData();
+      formData.append("produto_id", String(produtoId));
+      formData.append("file", file);
+
+      const response = await api.post("/produtos/imagem/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
+  /**
+   * Retorna a URL da imagem do produto.
+   * @param produtoId ID do produto
+   */
+  async getImagemUrl(produtoId: number): Promise<string> {
+    return `${API_BASE_URL}/produtos/imagem/${produtoId}`;
+  },
+
+  /**
+   * Deleta a imagem do produto.
+   * @param produtoId ID do produto
+   */
+  async deletarImagem(produtoId: number): Promise<{ message: string; success: boolean }> {
+    try {
+      const response = await api.delete(`/produtos/imagem/${produtoId}`);
+      return response.data;
+    } catch (error) {
       return handleApiError(error as AxiosError);
     }
   },
