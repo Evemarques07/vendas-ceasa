@@ -1,7 +1,7 @@
 {
-  "name": "Sistema Vendas CEASA",
-  "short_name": "Vendas CEASA",
-  "description": "Sistema de Controle de Pedidos de Frutas, Legumes e Verduras - CEASA",
+  "name": "Sistema Vendas",
+  "short_name": "Vendas",
+  "description": "Sistema de Controle de Pedidos de Frutas, Legumes e Verduras",
   "theme_color": "#22c55e",
   "background_color": "#ffffff",
   "display": "standalone",
