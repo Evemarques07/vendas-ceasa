@@ -132,6 +132,10 @@ export function ProdutosPage() {
       if (editingProduto) {
         await produtosService.atualizar(editingProduto.id, dadosProduto);
         if (imagemArquivo) {
+          // Se já tinha imagem, deleta antes de subir a nova
+          if (editingProduto.tem_imagem) {
+            await produtosService.deletarImagem(editingProduto.id);
+          }
           await produtosService.uploadImagem(editingProduto.id, imagemArquivo);
         } else if (imagemRemovida) {
           await produtosService.deletarImagem(editingProduto.id);
