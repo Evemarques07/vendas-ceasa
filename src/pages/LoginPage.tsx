@@ -15,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox"; // Precisamos deste novo componente
 
 // Ícones
-import { Building2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
+import logoFrutos from "../assets/logo-frutos-da-terra.png";
 
 // --- Esquema de Validação ---
 const loginSchema = z.object({
@@ -110,13 +111,18 @@ export function LoginPage() {
       <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8">
           <div className="flex flex-col items-center text-center">
-            <Building2 className="h-10 w-10 text-blue-600" />
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900">
+            <img
+              src={logoFrutos}
+              alt="Logo Frutos da Terra Hortifruti"
+              className="w-32 h-32 object-contain mb-2 drop-shadow-md"
+              style={{ background: "transparent" }}
+            />
+            {/* <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
               Acesse sua Conta
             </h1>
             <p className="mt-2 text-sm text-gray-600">
               Bem-vindo de volta! Insira suas credenciais.
-            </p>
+            </p> */}
           </div>
 
           <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
