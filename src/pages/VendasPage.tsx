@@ -1,3 +1,6 @@
+// Certifique-se de importar React, useState, useEffect no topo do arquivo:
+// import React, { useState, useEffect, useRef, useCallback } from "react";
+
 // Modal de produtos da venda
 
 import React, { useState, useEffect } from "react";
@@ -18,7 +21,6 @@ import type {
   Produto,
   FormVenda,
   FormItemVenda,
-  TipoMedida,
 } from "@/types";
 import { MoreHorizontal } from "lucide-react";
 import {
@@ -29,7 +31,26 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function VendasPage() {
+  // Estado para mostrar o botão de voltar ao topo
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 200);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [vendas, setVendas] = useState<Venda[]>([]);
+  // const [totalVendas, setTotalVendas] = useState(0);
+  const [skip, setSkip] = useState(0);
+  const [limit] = useState(20); // Pode ajustar o tamanho da página
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +71,22 @@ export function VendasPage() {
     carregarDados();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Scroll infinito: observer para o último item
+  const observer = React.useRef<IntersectionObserver | null>(null);
+  const lastVendaRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      if (loadingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          carregarMaisVendas();
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [loadingMore, hasMore]
+  );
 
   const [produtosModal, setProdutosModal] = useState<{
     open: boolean;
@@ -90,7 +127,7 @@ export function VendasPage() {
         description:
           "A venda foi excluída e os produtos retornaram ao estoque.",
       });
-      await carregarVendas();
+      await carregarDados();
     } catch (error: any) {
       console.error("Erro ao excluir venda:", error);
       toast({
@@ -106,66 +143,37 @@ export function VendasPage() {
   const carregarDados = async () => {
     try {
       setLoading(true);
-      await Promise.all([
-        carregarVendas(),
-        carregarClientes(),
-        carregarProdutos(),
+      setSkip(0);
+      setHasMore(true);
+      const [vendasRes, clientesRes, produtosRes] = await Promise.all([
+        vendasService.listar({ skip: 0, limit }),
+        clientesService.listar(),
+        produtosService.listar(),
       ]);
+      setVendas(vendasRes.vendas);
+      // setTotalVendas(vendasRes.total);
+      setSkip(vendasRes.vendas.length);
+      setClientes(clientesRes.clientes);
+      setProdutos(produtosRes.produtos);
+      setHasMore(vendasRes.vendas.length < vendasRes.total);
     } finally {
       setLoading(false);
     }
   };
 
-  const carregarVendas = async () => {
+  // Carregar mais vendas ao rolar
+  const carregarMaisVendas = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
     try {
-      const resultado = await vendasService.listar();
-      setVendas(resultado.vendas);
+      const resultado = await vendasService.listar({ skip, limit });
+      setVendas((prev) => [...prev, ...resultado.vendas]);
+      setSkip(skip + resultado.vendas.length);
+      setHasMore(skip + resultado.vendas.length < resultado.total);
     } catch (error) {
-      console.error("Erro ao carregar vendas:", error);
-      setVendas([]);
-    }
-  };
-
-  const carregarClientes = async () => {
-    try {
-      const resultado = await clientesService.listar();
-      setClientes(resultado.clientes);
-    } catch (error) {
-      console.error("Erro ao carregar clientes:", error);
-      setClientes([
-        {
-          id: 1,
-          nome: "João Silva",
-          nome_fantasia: "Mercado do João",
-          cpf_ou_cnpj: "123.456.789-00",
-          endereco: "Rua das Flores, 123",
-          telefone1: "(11) 99999-1111",
-          telefone2: "",
-          ativo: true,
-          criado_em: new Date().toISOString(),
-        },
-      ]);
-    }
-  };
-
-  const carregarProdutos = async () => {
-    try {
-      const resultado = await produtosService.listar();
-      setProdutos(resultado.produtos);
-    } catch (error) {
-      console.error("Erro ao carregar produtos:", error);
-      setProdutos([
-        {
-          id: 1,
-          nome: "Banana Nanica",
-          descricao: "Banana nanica de primeira qualidade",
-          preco_venda: 3.5,
-          tipo_medida: "kg" as TipoMedida,
-          estoque_minimo: 5,
-          ativo: true,
-          criado_em: new Date().toISOString(),
-        },
-      ]);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -206,7 +214,7 @@ export function VendasPage() {
         title: "Sucesso!",
         description: "Venda enviada para separação.",
       });
-      await carregarVendas();
+      await carregarDados();
       resetForm();
     } catch (error) {
       console.error("Erro ao criar venda:", error);
@@ -255,7 +263,7 @@ export function VendasPage() {
         title: "Sucesso!",
         description: "Venda rápida realizada com sucesso.",
       });
-      await carregarVendas();
+      await carregarDados();
       resetForm();
     } catch (error: any) {
       console.error("Erro ao realizar venda rápida:", error);
@@ -1072,15 +1080,16 @@ export function VendasPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {vendasFiltradas.map((venda) => {
+              {vendasFiltradas.map((venda, idx) => {
                 const clienteInfo =
                   venda.cliente ||
                   (venda.cliente_id
                     ? clientes.find((c) => c.id === venda.cliente_id)
                     : null);
+                // Key única: id + idx
                 return (
                   <tr
-                    key={venda.id}
+                    key={`${venda.id}-${idx}`}
                     className="hover:bg-gray-50 transition-colors duration-150"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -1249,12 +1258,18 @@ export function VendasPage() {
 
         {/* Versão Mobile */}
         <div className="lg:hidden">
-          {vendasFiltradas.map((venda) => {
+          {vendasFiltradas.map((venda, idx) => {
             const clienteInfo =
               venda.cliente ||
               (clientes || []).find((c) => c.id === venda.cliente_id);
+            const isLast = idx === vendasFiltradas.length - 1;
+            // Key única: id + idx
             return (
-              <div key={venda.id} className="border-b border-gray-200 p-4">
+              <div
+                key={`${venda.id}-${idx}`}
+                className="border-b border-gray-200 p-4"
+                ref={isLast ? lastVendaRef : undefined}
+              >
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h3 className="font-medium text-gray-900">
@@ -1335,7 +1350,7 @@ export function VendasPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => verDetalhes(venda.id)}
-                    className="flex-1 min-w-0"
+                    className="w-full truncate bg-white border border-gray-400 text-gray-800 hover:bg-gray-100 hover:border-gray-600 transition-colors shadow-sm"
                   >
                     Ver Detalhes
                   </Button>
@@ -1343,26 +1358,46 @@ export function VendasPage() {
                     <Button
                       size="sm"
                       onClick={() => marcarComoPago(venda.id)}
-                      className="bg-green-600 hover:bg-green-700 text-white flex-1 min-w-0"
+                      className="w-full truncate bg-white border border-gray-400 text-green-700 font-semibold hover:bg-green-50 hover:border-green-700 transition-colors shadow-sm"
                     >
                       Marcar como Pago
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    onClick={() => gerarPDF(venda)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    📄 PDF
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => excluirVenda(venda.id)}
-                    disabled={formProcessing}
-                  >
-                    Excluir
-                  </Button>
+                  <div className="flex w-full gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => gerarPDF(venda)}
+                      className="w-1/2 truncate bg-white border border-gray-400 text-gray-800 hover:bg-gray-100 hover:border-gray-600 transition-colors shadow-sm flex items-center justify-center gap-2"
+                      title="Gerar PDF"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        className="inline-block align-middle"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 16v-4m0 0V8m0 4h4m-4 0H8m8 8H8a2 2 0 01-2-2V6a2 2 0 012-2h5.586a1 1 0 01.707.293l3.414 3.414A1 1 0 0118 8.414V18a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                      PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => excluirVenda(venda.id)}
+                      disabled={formProcessing}
+                      className="w-1/2 truncate bg-white border border-gray-400 text-red-700 font-semibold hover:bg-red-50 hover:border-red-700 transition-colors shadow-sm"
+                    >
+                      Excluir
+                    </Button>
+                  </div>
                 </div>
               </div>
             );
@@ -1374,6 +1409,11 @@ export function VendasPage() {
             {searchTerm
               ? "Nenhuma venda encontrada"
               : "Nenhuma venda registrada"}
+          </div>
+        )}
+        {loadingMore && (
+          <div className="text-center py-4 text-gray-500">
+            Carregando mais vendas...
           </div>
         )}
       </div>
@@ -1739,6 +1779,35 @@ export function VendasPage() {
           </div>
         </div>
       )}
+      {/* Botão flutuante para voltar ao topo */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-50 bg-white/90 border border-gray-300 shadow-lg rounded-full p-3 flex items-center justify-center transition hover:bg-blue-600 hover:text-white hover:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 animate-fade-in"
+          aria-label="Voltar ao topo"
+          style={{ boxShadow: "0 4px 16px 0 rgba(0,0,0,0.10)" }}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-7 h-7"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 15l7-7 7 7"
+            />
+          </svg>
+        </button>
+      )}
     </div>
+    // Animação fade-in para o botão flutuante
+    // Adicione no topo do arquivo (após imports) se desejar animação customizada:
+    // import "../../index.css" // ou adicione a classe abaixo no seu CSS global
+    // .animate-fade-in { animation: fadeIn 0.4s; }
+    // @keyframes fadeIn { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none; } }
   );
 }

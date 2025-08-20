@@ -630,48 +630,52 @@ export function RelatoriosPage() {
           {fluxoCaixa && (
             <div className="space-y-6">
               {/* Cards de Resumo */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-green-600">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="bg-green-50 rounded-lg p-4 flex flex-col items-center justify-center">
+                  <div className="text-sm font-medium text-green-600 text-center">
                     Total Entradas
                   </div>
-                  <div className="text-2xl font-bold text-green-900">
+                  <div className="text-2xl font-bold text-green-900 text-center">
                     {formatarMoeda(Number(fluxoCaixa.total_entradas))}
                   </div>
                 </div>
-                <div className="bg-red-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-red-600">
+                <div className="bg-red-50 rounded-lg p-4 flex flex-col items-center justify-center">
+                  <div className="text-sm font-medium text-red-600 text-center">
                     Total Saídas
                   </div>
-                  <div className="text-2xl font-bold text-red-900">
+                  <div className="text-2xl font-bold text-red-900 text-center">
                     {formatarMoeda(Number(fluxoCaixa.total_saidas))}
                   </div>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-blue-600">Saldo</div>
-                  <div className="text-2xl font-bold text-blue-900">
+                <div className="bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center">
+                  <div className="text-sm font-medium text-blue-600 text-center">
+                    Saldo
+                  </div>
+                  <div className="text-2xl font-bold text-blue-900 text-center">
                     {formatarMoeda(Number(fluxoCaixa.saldo))}
                   </div>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-purple-600">
+                <div className="bg-purple-50 rounded-lg p-4 flex flex-col items-center justify-center">
+                  <div className="text-sm font-medium text-purple-600 text-center">
                     Lucro Bruto
                   </div>
-                  <div className="text-2xl font-bold text-purple-900">
+                  <div className="text-2xl font-bold text-purple-900 text-center">
                     {formatarMoeda(Number(fluxoCaixa.lucro_bruto_total))}
                   </div>
-                  <div className="text-sm text-purple-600">
+                  <div className="text-sm text-purple-600 text-center">
                     Margem: {fluxoCaixa.margem_media}%
                   </div>
                 </div>
-                <div className="bg-orange-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-orange-600">
+                <div className="bg-orange-50 rounded-lg p-4 flex flex-col items-center justify-center">
+                  <div className="text-sm font-medium text-orange-600 text-center">
                     Vendas
                   </div>
-                  <div className="text-2xl font-bold text-orange-900">
+                  <div className="text-2xl font-bold text-orange-900 text-center">
                     {fluxoCaixa.quantidade_vendas}
                   </div>
-                  <div className="text-sm text-orange-600">Quantidade</div>
+                  <div className="text-sm text-orange-600 text-center">
+                    Quantidade
+                  </div>
                 </div>
               </div>
 
