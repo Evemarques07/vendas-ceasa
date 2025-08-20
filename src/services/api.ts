@@ -505,9 +505,9 @@ export const produtosService = {
       if (filtros?.ativo !== undefined) params.ativo = filtros.ativo;
 
       console.log("Params:", params);
-      console.log("URL:", `${api.defaults.baseURL}/produtos`);
+      console.log("URL:", `${api.defaults.baseURL}/produtos/`);
 
-      const response = await api.get<any>("/produtos", { params });
+      const response = await api.get<any>("/produtos/", { params });
       console.log("Response listar produtos:", response.data);
 
       // Mapear a estrutura da API para o formato esperado
