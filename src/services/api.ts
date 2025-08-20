@@ -435,7 +435,7 @@ export const clientesService = {
       if (filtros?.cpf_ou_cnpj) params.cpf_ou_cnpj = filtros.cpf_ou_cnpj;
       if (filtros?.ativo !== undefined) params.ativo = filtros.ativo;
 
-      const response = await api.get<any>("/clientes", { params });
+      const response = await api.get<any>("/clientes/", { params });
 
       // Mapear a estrutura da API para o formato esperado
       const apiData = response.data.data;
@@ -464,7 +464,7 @@ export const clientesService = {
   async criar(dados: FormCliente): Promise<Cliente> {
     try {
       // Os dados já estão no formato correto (snake_case)
-      const response = await api.post<ApiResponse<Cliente>>("/clientes", dados);
+      const response = await api.post<ApiResponse<Cliente>>("/clientes/", dados);
       return response.data.data;
     } catch (error) {
       return handleApiError(error as AxiosError);
@@ -846,7 +846,7 @@ export const vendasService = {
       console.log("Params:", params);
       console.log("URL:", `${api.defaults.baseURL}/vendas`);
 
-      const response = await api.get<any>("/vendas", { params });
+      const response = await api.get<any>("/vendas/", { params });
       console.log("Response listar vendas:", response.data);
 
       // Mapear a estrutura da API para o formato esperado
@@ -1000,7 +1000,7 @@ export const vendasService = {
       console.log("Dados para API:", dadosParaAPI);
       console.log("URL:", `${api.defaults.baseURL}/vendas`);
 
-      const response = await api.post<any>("/vendas", dadosParaAPI);
+      const response = await api.post<any>("/vendas/", dadosParaAPI);
       console.log("Venda criada:", response.data);
 
       const venda = response.data.data || response.data;
