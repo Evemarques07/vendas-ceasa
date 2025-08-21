@@ -224,7 +224,7 @@ export function Layout({ children }: LayoutProps) {
               <Link to="/dashboard" className="flex items-center gap-2">
                 <Building2 className="h-7 w-7 text-blue-600" />
                 <h1 className="text-xl font-bold text-gray-800 hidden sm:block">
-                  SistemaCorp
+                  Frutos da Terra
                 </h1>
               </Link>
             </div>

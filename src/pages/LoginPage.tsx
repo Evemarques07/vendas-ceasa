@@ -214,7 +214,7 @@ export function LoginPage() {
           </div>
 
           <p className="text-center text-xs text-gray-500">
-            &copy; {new Date().getFullYear()} SistemaCorp. Todos os direitos
+            &copy; {new Date().getFullYear()} Frutos da Terra. Todos os direitos
             reservados.
           </p>
         </div>
