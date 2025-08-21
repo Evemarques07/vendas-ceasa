@@ -90,7 +90,7 @@ export function RelatoriosPage() {
   });
 
   const [filtrosInadimplentes, setFiltrosInadimplentes] = useState({
-    dias_minimo: 30,
+    dias_minimo: "30", // string para permitir apagar
     valor_minimo: "",
     ordenar_por: "valor_desc" as
       | "valor_desc"
@@ -355,8 +355,11 @@ export function RelatoriosPage() {
       setLoading(true);
       const filtros: any = {};
 
-      if (filtrosInadimplentes.dias_minimo)
-        filtros.dias_minimo = filtrosInadimplentes.dias_minimo;
+      if (
+        filtrosInadimplentes.dias_minimo &&
+        filtrosInadimplentes.dias_minimo !== ""
+      )
+        filtros.dias_minimo = parseInt(filtrosInadimplentes.dias_minimo, 10);
       if (filtrosInadimplentes.valor_minimo)
         filtros.valor_minimo = Number(filtrosInadimplentes.valor_minimo);
       if (filtrosInadimplentes.ordenar_por)
@@ -663,7 +666,7 @@ export function RelatoriosPage() {
                     {formatarMoeda(Number(fluxoCaixa.lucro_bruto_total))}
                   </div>
                   <div className="text-sm text-purple-600 text-center">
-                    Margem: {fluxoCaixa.margem_media}%
+                    Margem: {Number(fluxoCaixa.margem_media).toFixed(2)}%
                   </div>
                 </div>
                 <div className="bg-orange-50 rounded-lg p-4 flex flex-col items-center justify-center">
@@ -680,7 +683,53 @@ export function RelatoriosPage() {
               </div>
 
               {/* Tabela de Movimentações */}
-              <div className="bg-white rounded-lg shadow overflow-hidden">
+              {/* Mobile: Cards de Movimentações */}
+              <div className="md:hidden space-y-3">
+                {fluxoCaixa.movimentacoes.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhuma movimentação encontrada
+                  </div>
+                ) : (
+                  fluxoCaixa.movimentacoes.map((mov) => (
+                    <div
+                      key={mov.id}
+                      className="bg-white rounded-lg shadow p-4 flex flex-col gap-1"
+                    >
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium text-gray-700">
+                          {mov.data ? formatarData(mov.data) : "-"}
+                        </span>
+                        <span
+                          className={`font-bold ${
+                            mov.tipo === "entrada"
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {mov.tipo.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Produto: {obterNomeProduto(mov.produto_id)}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs mt-1">
+                        <span>Qtd: {mov.quantidade}</span>
+                        <span>
+                          Unit: {formatarMoeda(Number(mov.preco_unitario))}
+                        </span>
+                        <span>
+                          Total: {formatarMoeda(Number(mov.valor_total))}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Obs: {mov.observacoes || "-"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Desktop: Tabela de Movimentações */}
+              <div className="bg-white rounded-lg shadow overflow-hidden hidden md:block">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">
                     Movimentações ({fluxoCaixa.movimentacoes.length})
@@ -752,7 +801,6 @@ export function RelatoriosPage() {
                     </tbody>
                   </table>
                 </div>
-
                 {fluxoCaixa.movimentacoes.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     Nenhuma movimentação encontrada
@@ -856,7 +904,46 @@ export function RelatoriosPage() {
               </div>
 
               {/* Rentabilidade por Produto */}
-              <div className="bg-white rounded-lg shadow overflow-hidden">
+              {/* Mobile: Cards de Rentabilidade por Produto */}
+              <div className="md:hidden space-y-3">
+                {rentabilidade.produtos.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhum produto encontrado
+                  </div>
+                ) : (
+                  rentabilidade.produtos.map((produto) => (
+                    <div
+                      key={produto.produto.id}
+                      className="bg-white rounded-lg shadow p-4 flex flex-col gap-1"
+                    >
+                      <div className="font-bold text-gray-800">
+                        {produto.produto.nome}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-sm mt-1">
+                        <span>Qtd: {produto.quantidade_vendida}</span>
+                        <span>Vendas: {produto.vendas}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs mt-1">
+                        <span className="text-green-600">
+                          Receita:{" "}
+                          {formatarMoeda(Number(produto.receita_total))}
+                        </span>
+                        <span className="text-red-600">
+                          Custo: {formatarMoeda(Number(produto.custo_total))}
+                        </span>
+                        <span className="text-blue-600">
+                          Lucro: {formatarMoeda(Number(produto.lucro_bruto))}
+                        </span>
+                        <span className="text-purple-600">
+                          Margem: {Number(produto.margem_bruta).toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Desktop: Tabela de Rentabilidade por Produto */}
+              <div className="bg-white rounded-lg shadow overflow-hidden hidden md:block">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">
                     Rentabilidade por Produto ({rentabilidade.produtos.length})
@@ -961,7 +1048,60 @@ export function RelatoriosPage() {
               </div>
 
               {/* Lista de Alertas */}
-              <div className="bg-white rounded-lg shadow overflow-hidden">
+              {/* Mobile: Cards de Alertas */}
+              <div className="md:hidden space-y-3">
+                {alertas?.total_alertas === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-green-600 font-medium text-lg">
+                      ✅ Nenhum alerta de estoque!
+                    </div>
+                    <div className="text-sm text-gray-500 mt-2">
+                      Todos os produtos estão com estoque adequado.
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {(alertas?.data?.produtos_estoque_baixo || []).map(
+                      (produto) => (
+                        <div
+                          key={`baixo-${produto.produto_id}`}
+                          className="bg-yellow-50 rounded-lg p-4 flex flex-col gap-1 border border-yellow-200"
+                        >
+                          <div className="font-bold text-yellow-800">
+                            {produto.produto}
+                          </div>
+                          <div className="text-xs text-yellow-700">
+                            Estoque baixo: {produto.quantidade_atual}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Mínimo ideal: {produto.estoque_minimo}
+                          </div>
+                        </div>
+                      )
+                    )}
+                    {(alertas?.data?.produtos_sem_estoque || []).map(
+                      (produto) => (
+                        <div
+                          key={`sem-${produto.produto_id}`}
+                          className="bg-red-50 rounded-lg p-4 flex flex-col gap-1 border border-red-200"
+                        >
+                          <div className="font-bold text-red-800">
+                            {produto.produto}
+                          </div>
+                          <div className="text-xs text-red-700">
+                            Sem estoque!
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Mínimo ideal: {produto.estoque_minimo}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </>
+                )}
+              </div>
+              {/* Desktop: Tabela de Alertas */}
+              <div className="bg-white rounded-lg shadow overflow-hidden hidden md:block">
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900">
                     Alertas de Estoque ({alertas?.total_alertas || 0})
@@ -986,20 +1126,19 @@ export function RelatoriosPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {/* Produtos com estoque baixo */}
                       {(alertas?.data?.produtos_estoque_baixo || []).map(
                         (produto) => (
                           <tr
                             key={`baixo-${produto.produto_id}`}
                             className="hover:bg-gray-50"
                           >
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap font-bold text-yellow-800">
                               {produto.produto}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap text-yellow-700">
                               {produto.quantidade_atual}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap">
                               {produto.estoque_minimo}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -1010,21 +1149,19 @@ export function RelatoriosPage() {
                           </tr>
                         )
                       )}
-
-                      {/* Produtos sem estoque */}
                       {(alertas?.data?.produtos_sem_estoque || []).map(
                         (produto) => (
                           <tr
                             key={`sem-${produto.produto_id}`}
                             className="hover:bg-gray-50"
                           >
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap font-bold text-red-800">
                               {produto.produto}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap text-red-700">
                               0
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap">
                               {produto.estoque_minimo}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -1038,7 +1175,6 @@ export function RelatoriosPage() {
                     </tbody>
                   </table>
                 </div>
-
                 {alertas?.total_alertas === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-green-600 font-medium text-lg">
@@ -1323,7 +1459,50 @@ export function RelatoriosPage() {
               </div>
 
               {/* Lista de Vendas */}
-              <div className="overflow-x-auto">
+              {/* Mobile: Cards de Vendas */}
+              <div className="md:hidden space-y-3">
+                {historicoVendas.vendas.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Nenhuma venda encontrada
+                  </div>
+                ) : (
+                  historicoVendas.vendas.map((venda) => (
+                    <div
+                      key={venda.id}
+                      className="bg-white rounded-lg shadow p-4 flex flex-col gap-1"
+                    >
+                      <div className="flex justify-between text-sm">
+                        <span className="font-bold text-gray-700">
+                          #{venda.id}
+                        </span>
+                        <span
+                          className={`font-bold ${
+                            venda.situacao_pagamento === "Pago"
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {venda.situacao_pagamento}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Data:{" "}
+                        {venda.data_venda
+                          ? formatarData(venda.data_venda)
+                          : "-"}
+                      </div>
+                      <div className="text-xs text-blue-600 font-bold">
+                        Valor: {formatarMoeda(venda.total_venda)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Status: {venda.situacao_pedido}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {/* Desktop: Tabela de Vendas */}
+              <div className="overflow-x-auto hidden md:block">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -1616,16 +1795,17 @@ export function RelatoriosPage() {
                   Dias mínimo de atraso
                 </label>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={filtrosInadimplentes.dias_minimo}
                   onChange={(e) =>
                     setFiltrosInadimplentes((prev) => ({
                       ...prev,
-                      dias_minimo: Number(e.target.value) || 0,
+                      dias_minimo: e.target.value.replace(/[^0-9]/g, ""),
                     }))
                   }
-                  placeholder="30"
-                  min="1"
+                  placeholder="Digite o número de dias"
                 />
               </div>
               <div>
@@ -1679,18 +1859,19 @@ export function RelatoriosPage() {
 
             {clientesInadimplentes && (
               <div>
+                {/* Resumo - responsivo */}
                 <div className="mb-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">
+                  <div className="flex flex-col md:grid md:grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg shadow p-4 flex-1 text-center border border-gray-100">
+                      <div className="text-2xl font-bold text-red-600 break-words">
                         {formatarMoeda(
                           clientesInadimplentes.resumo.total_devido_geral
                         )}
                       </div>
                       <div className="text-sm text-gray-500">Total Devido</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">
+                    <div className="bg-white rounded-lg shadow p-4 flex-1 text-center border border-gray-100">
+                      <div className="text-2xl font-bold text-orange-600 break-words">
                         {clientesInadimplentes.resumo.quantidade_clientes}
                       </div>
                       <div className="text-sm text-gray-500">
@@ -1714,52 +1895,50 @@ export function RelatoriosPage() {
                   </div>
                 </div>
 
+                {/* Lista de inadimplentes - responsivo */}
                 <div className="space-y-4">
                   {clientesInadimplentes.clientes_inadimplentes.map((item) => (
                     <div
                       key={item.cliente.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50"
+                      className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 bg-white shadow flex flex-col gap-2 md:flex-row md:justify-between md:items-center"
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium text-gray-900">
-                            {item.cliente.nome}
-                          </h4>
-                          {item.cliente.nome_fantasia && (
-                            <p className="text-sm text-gray-500">
-                              {item.cliente.nome_fantasia}
-                            </p>
-                          )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 break-words">
+                          {item.cliente.nome}
+                        </h4>
+                        {item.cliente.nome_fantasia && (
+                          <p className="text-sm text-gray-500 break-words">
+                            {item.cliente.nome_fantasia}
+                          </p>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-1">
                           {item.cliente.telefone1 && (
-                            <p className="text-sm text-gray-500">
+                            <span className="text-xs text-gray-500 bg-gray-100 rounded px-2 py-0.5">
                               📞 {item.cliente.telefone1}
-                            </p>
+                            </span>
                           )}
                           {item.cliente.email && (
-                            <p className="text-sm text-gray-500">
+                            <span className="text-xs text-gray-500 bg-gray-100 rounded px-2 py-0.5">
                               ✉️ {item.cliente.email}
-                            </p>
+                            </span>
                           )}
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-red-600">
-                            {formatarMoeda(item.divida.total_devido)}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {item.divida.vendas_pendentes} vendas pendentes
-                          </div>
-                          <div className="text-sm text-red-500 font-medium">
-                            {item.divida.dias_atraso_maximo} dias de atraso
-                            máximo
-                          </div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            Mais antiga:{" "}
-                            {item.divida.venda_mais_antiga
-                              ? formatarDataSimples(
-                                  item.divida.venda_mais_antiga
-                                )
-                              : "-"}
-                          </div>
+                      </div>
+                      <div className="flex flex-col items-end mt-3 md:mt-0 md:items-end min-w-[120px]">
+                        <div className="text-lg font-bold text-red-600 break-words">
+                          {formatarMoeda(item.divida.total_devido)}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {item.divida.vendas_pendentes} vendas pendentes
+                        </div>
+                        <div className="text-sm text-red-500 font-medium">
+                          {item.divida.dias_atraso_maximo} dias de atraso máximo
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          Mais antiga:{" "}
+                          {item.divida.venda_mais_antiga
+                            ? formatarDataSimples(item.divida.venda_mais_antiga)
+                            : "-"}
                         </div>
                       </div>
                     </div>

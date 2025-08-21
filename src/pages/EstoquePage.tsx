@@ -74,8 +74,13 @@ export default function EstoquePage() {
   });
 
   // Form state para correção de inventário
-  const [formCorrecao, setFormCorrecao] = useState<FormCorrecaoInventario>({
-    quantidade_atual: 0,
+  // Para permitir apagar o zero, quantidade_atual é string
+  const [formCorrecao, setFormCorrecao] = useState<
+    Omit<FormCorrecaoInventario, "quantidade_atual"> & {
+      quantidade_atual: string;
+    }
+  >({
+    quantidade_atual: "",
     observacoes: "",
   });
 
@@ -182,7 +187,7 @@ export default function EstoquePage() {
 
   const resetFormCorrecao = () => {
     setFormCorrecao({
-      quantidade_atual: 0,
+      quantidade_atual: "",
       observacoes: "",
     });
     setIsCorrecaoVisible(false);
@@ -192,7 +197,7 @@ export default function EstoquePage() {
   const handleCorrecaoInventario = (item: Inventario) => {
     setProdutoSelecionado(item);
     setFormCorrecao({
-      quantidade_atual: parseFloat(item.quantidade_atual),
+      quantidade_atual: item.quantidade_atual.toString(),
       observacoes: "",
     });
     setIsCorrecaoVisible(true);
@@ -212,8 +217,22 @@ export default function EstoquePage() {
         throw new Error("Observações são obrigatórias para auditoria");
       }
 
+      // Converter quantidade para número
+      const quantidadeNum = parseFloat(
+        formCorrecao.quantidade_atual.replace(",", ".")
+      );
+      if (
+        !formCorrecao.quantidade_atual ||
+        isNaN(quantidadeNum) ||
+        quantidadeNum < 0
+      ) {
+        setError("Por favor, informe uma quantidade válida.");
+        setLoadingForm(false);
+        return;
+      }
+
       await estoqueService.corrigirInventario(produtoSelecionado.produto_id, {
-        quantidade_atual: formCorrecao.quantidade_atual,
+        quantidade_atual: quantidadeNum,
         observacoes: formCorrecao.observacoes,
       });
 
@@ -567,14 +586,14 @@ export default function EstoquePage() {
               <form onSubmit={handleSubmitCorrecao} className="space-y-4">
                 <Input
                   label="Nova Quantidade"
-                  type="number"
-                  step="0.001"
-                  min="0"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
                   value={formCorrecao.quantidade_atual}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFormCorrecao({
                       ...formCorrecao,
-                      quantidade_atual: parseFloat(e.target.value) || 0,
+                      quantidade_atual: e.target.value.replace(/[^0-9.,]/g, ""),
                     })
                   }
                   required
