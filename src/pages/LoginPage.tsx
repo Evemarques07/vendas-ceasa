@@ -219,106 +219,108 @@ export function LoginPage() {
           </motion.div>
 
           {/* Cadastro do primeiro administrador */}
-          {!adminCheckLoading && adminExists === false && (
-            <form
-              onSubmit={handleSubmitAdmin(onSubmitAdmin)}
-              className="space-y-5"
-            >
-              <AnimatePresence>
-                {adminError && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: "auto" }}
-                    exit={{ opacity: 0, y: -10, height: 0 }}
-                    className="flex items-center gap-3 rounded-md bg-red-50 p-3 text-sm font-medium text-red-700 border border-red-200"
-                  >
-                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                    <span>{adminError}</span>
-                  </motion.div>
-                )}
-                {adminSuccess && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: "auto" }}
-                    exit={{ opacity: 0, y: -10, height: 0 }}
-                    className="flex items-center gap-3 rounded-md bg-green-50 p-3 text-sm font-medium text-green-700 border border-green-200"
-                  >
-                    <span>{adminSuccess}</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <motion.div variants={itemVariants} className="space-y-2">
-                <Label htmlFor="nome">Nome</Label>
-                <Input
-                  id="nome"
-                  {...registerAdmin("nome")}
-                  disabled={isLoading}
-                />
-                {errorsAdmin.nome && (
-                  <p className="text-sm text-red-600">
-                    {errorsAdmin.nome.message}
-                  </p>
-                )}
-              </motion.div>
-              <motion.div variants={itemVariants} className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  {...registerAdmin("email")}
-                  disabled={isLoading}
-                />
-                {errorsAdmin.email && (
-                  <p className="text-sm text-red-600">
-                    {errorsAdmin.email.message}
-                  </p>
-                )}
-              </motion.div>
-              <motion.div variants={itemVariants} className="space-y-2">
-                <Label htmlFor="cpf_ou_cnpj">CPF ou CNPJ</Label>
-                <Input
-                  id="cpf_ou_cnpj"
-                  {...registerAdmin("cpf_ou_cnpj")}
-                  disabled={isLoading}
-                />
-                {errorsAdmin.cpf_ou_cnpj && (
-                  <p className="text-sm text-red-600">
-                    {errorsAdmin.cpf_ou_cnpj.message}
-                  </p>
-                )}
-              </motion.div>
-              <motion.div variants={itemVariants} className="space-y-2">
-                <Label htmlFor="senha">Senha</Label>
-                <Input
-                  id="senha"
-                  type="password"
-                  {...registerAdmin("senha")}
-                  disabled={isLoading}
-                />
-                {errorsAdmin.senha && (
-                  <p className="text-sm text-red-600">
-                    {errorsAdmin.senha.message}
-                  </p>
-                )}
-              </motion.div>
-              <motion.div variants={itemVariants}>
-                <Button
-                  type="submit"
-                  className="w-full h-11 text-base"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    "Cadastrar Administrador"
+          {/* Exibe o formulário se não está carregando e NÃO existe admin, ou se houve erro na verificação (adminExists === null) */}
+          {!adminCheckLoading &&
+            (adminExists === false || adminExists === null) && (
+              <form
+                onSubmit={handleSubmitAdmin(onSubmitAdmin)}
+                className="space-y-5"
+              >
+                <AnimatePresence>
+                  {adminError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -10, height: 0 }}
+                      className="flex items-center gap-3 rounded-md bg-red-50 p-3 text-sm font-medium text-red-700 border border-red-200"
+                    >
+                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                      <span>{adminError}</span>
+                    </motion.div>
                   )}
-                </Button>
-              </motion.div>
-            </form>
-          )}
+                  {adminSuccess && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -10, height: 0 }}
+                      className="flex items-center gap-3 rounded-md bg-green-50 p-3 text-sm font-medium text-green-700 border border-green-200"
+                    >
+                      <span>{adminSuccess}</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label htmlFor="nome">Nome</Label>
+                  <Input
+                    id="nome"
+                    {...registerAdmin("nome")}
+                    disabled={isLoading}
+                  />
+                  {errorsAdmin.nome && (
+                    <p className="text-sm text-red-600">
+                      {errorsAdmin.nome.message}
+                    </p>
+                  )}
+                </motion.div>
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    {...registerAdmin("email")}
+                    disabled={isLoading}
+                  />
+                  {errorsAdmin.email && (
+                    <p className="text-sm text-red-600">
+                      {errorsAdmin.email.message}
+                    </p>
+                  )}
+                </motion.div>
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label htmlFor="cpf_ou_cnpj">CPF ou CNPJ</Label>
+                  <Input
+                    id="cpf_ou_cnpj"
+                    {...registerAdmin("cpf_ou_cnpj")}
+                    disabled={isLoading}
+                  />
+                  {errorsAdmin.cpf_ou_cnpj && (
+                    <p className="text-sm text-red-600">
+                      {errorsAdmin.cpf_ou_cnpj.message}
+                    </p>
+                  )}
+                </motion.div>
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label htmlFor="senha">Senha</Label>
+                  <Input
+                    id="senha"
+                    type="password"
+                    {...registerAdmin("senha")}
+                    disabled={isLoading}
+                  />
+                  {errorsAdmin.senha && (
+                    <p className="text-sm text-red-600">
+                      {errorsAdmin.senha.message}
+                    </p>
+                  )}
+                </motion.div>
+                <motion.div variants={itemVariants}>
+                  <Button
+                    type="submit"
+                    className="w-full h-11 text-base"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      "Cadastrar Administrador"
+                    )}
+                  </Button>
+                </motion.div>
+              </form>
+            )}
 
           {/* Formulário de login */}
           {!adminCheckLoading && adminExists === true && (

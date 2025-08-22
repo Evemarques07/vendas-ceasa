@@ -13,7 +13,7 @@ interface AuthContextData {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, senha: string) => Promise<void>;
+  login: (login: string, senha: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: Usuario) => void;
 }
@@ -77,18 +77,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => clearInterval(interval);
   }, [token, user]);
 
-  const login = async (email: string, senha: string): Promise<void> => {
+  const login = async (login: string, senha: string): Promise<void> => {
     setIsLoading(true);
-
     try {
       const { user: loggedUser, token: authToken } = await authService.login(
-        email,
+        login,
         senha
       );
-
       setUser(loggedUser);
       setToken(authToken);
-
       localStorage.setItem("authToken", authToken);
       localStorage.setItem("currentUser", JSON.stringify(loggedUser));
     } catch (error) {
