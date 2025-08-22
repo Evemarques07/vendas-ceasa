@@ -8,12 +8,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Variants } from "framer-motion"; // Importamos o tipo Variants
 import { useAuth } from "@/contexts/AuthContext";
 import { userService } from "@/services/api";
-// --- Esquema de Validação para criar admin ---
+
+// --- Esquema de Validação para criar admin (sem senha) ---
 const adminSchema = z.object({
   nome: z.string().min(3, "Nome obrigatório"),
   email: z.string().email("E-mail inválido"),
   cpf_ou_cnpj: z.string().min(11, "CPF/CNPJ obrigatório"),
-  senha: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
 });
 
 type AdminFormData = z.infer<typeof adminSchema>;
@@ -289,20 +289,7 @@ export function LoginPage() {
                     </p>
                   )}
                 </motion.div>
-                <motion.div variants={itemVariants} className="space-y-2">
-                  <Label htmlFor="senha">Senha</Label>
-                  <Input
-                    id="senha"
-                    type="password"
-                    {...registerAdmin("senha")}
-                    disabled={isLoading}
-                  />
-                  {errorsAdmin.senha && (
-                    <p className="text-sm text-red-600">
-                      {errorsAdmin.senha.message}
-                    </p>
-                  )}
-                </motion.div>
+
                 <motion.div variants={itemVariants}>
                   <Button
                     type="submit"
