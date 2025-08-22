@@ -344,6 +344,38 @@ export const authService = {
 };
 
 export const userService = {
+  //verificar se existe administrador
+  async verificarAdministrador(): Promise<boolean> {
+    try {
+      const response = await api.get<ApiResponse<any>>("/user/administradores");
+      // Se data for um objeto, existe admin. Se for null, não existe.
+      const existeAdmin = !!response.data.data;
+      console.log("Resposta verificarAdministrador:", response.data);
+      return existeAdmin;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
+  // Cria o primeiro e único administrador do sistema
+  async criarAdministrador(dados: {
+    nome: string;
+    email: string;
+    cpf_ou_cnpj: string;
+    tipo: "administrador";
+  }): Promise<Usuario> {
+    try {
+      const response = await api.post<ApiResponse<any>>(
+        "/user/administradores",
+        dados
+      );
+      // O backend retorna data com os campos do admin criado
+      return response.data.data;
+    } catch (error) {
+      return handleApiError(error as AxiosError);
+    }
+  },
+
   // Lista todos os funcionários
   async listar(): Promise<Usuario[]> {
     try {
@@ -464,7 +496,10 @@ export const clientesService = {
   async criar(dados: FormCliente): Promise<Cliente> {
     try {
       // Os dados já estão no formato correto (snake_case)
-      const response = await api.post<ApiResponse<Cliente>>("/clientes/", dados);
+      const response = await api.post<ApiResponse<Cliente>>(
+        "/clientes/",
+        dados
+      );
       return response.data.data;
     } catch (error) {
       return handleApiError(error as AxiosError);
@@ -556,7 +591,7 @@ export const produtosService = {
       return handleApiError(error as AxiosError);
     }
   },
-  
+
   async criar(dados: FormProduto): Promise<Produto> {
     try {
       console.log("=== CRIANDO PRODUTO ===");
@@ -780,7 +815,10 @@ export const produtosService = {
    * @param produtoId ID do produto
    * @param file Arquivo de imagem (File)
    */
-  async uploadImagem(produtoId: number, file: File): Promise<{ message: string; filename: string; success: boolean }> {
+  async uploadImagem(
+    produtoId: number,
+    file: File
+  ): Promise<{ message: string; filename: string; success: boolean }> {
     try {
       const formData = new FormData();
       formData.append("produto_id", String(produtoId));
@@ -807,7 +845,9 @@ export const produtosService = {
    * Deleta a imagem do produto.
    * @param produtoId ID do produto
    */
-  async deletarImagem(produtoId: number): Promise<{ message: string; success: boolean }> {
+  async deletarImagem(
+    produtoId: number
+  ): Promise<{ message: string; success: boolean }> {
     try {
       const response = await api.delete(`/produtos/imagem/${produtoId}`);
       return response.data;
