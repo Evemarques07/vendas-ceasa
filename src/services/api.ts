@@ -35,7 +35,7 @@ import type {
 } from "@/types";
 
 // Configuração base da API
-const API_BASE_URL = "http://177.153.64.167:8000/api";
+const API_BASE_URL = "https://www.evertonmarques.com.br/api";
 // const API_BASE_URL = "http://localhost:8000/api"; // Para desenvolvimento local
 
 // Função para mapear tipos de medida do frontend para a API
