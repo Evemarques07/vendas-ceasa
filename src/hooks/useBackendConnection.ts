@@ -15,7 +15,7 @@ export function useBackendConnection() {
   const checkConnection = async () => {
     try {
       const baseURL =
-        import.meta.env.VITE_API_BASE_URL || "https://evertonmarques.com.br/api";
+        import.meta.env.VITE_API_BASE_URL || "http://177.153.64.167:8000/api";
 
       // Faz uma requisição simples para testar se o servidor está rodando
       // Usamos a documentação do FastAPI para verificar se o servidor responde
