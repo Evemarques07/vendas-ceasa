@@ -31,7 +31,7 @@ export interface ListaPaginadaUsuarios {
   usuarios: Usuario[];
   total: number;
   // skip e limit não são usados por esta API específica, mas mantemos a estrutura
-  skip: number; 
+  skip: number;
   limit: number;
 }
 
@@ -55,7 +55,6 @@ export type TipoMedida =
   | "duzia";
 
 // Status do pedido
-export type SituacaoPedido = "A separar" | "Separado";
 
 // Status do pagamento
 export type SituacaoPagamento = "Pago" | "Pendente";
@@ -113,10 +112,12 @@ export interface LucroBruto {
 export interface ItemVenda {
   id?: number;
   produto_id: number;
-  quantidade: string | number; // Quantidade pedida (backend retorna string)
-  quantidade_real?: string | number; // Quantidade separada
-  tipo_medida: string; // "kg", "un", etc.
-  valor_unitario: string | number; // Backend retorna string
+  quantidade: string | number;
+  tipo_medida: string;
+  valor_unitario: string | number;
+  valor_cust?: string | number; // legado, pode vir da API antiga
+  custo?: string | number; // novo campo, pode vir da API
+  lucro_bruto?: string | number; // novo campo, pode vir da API
   valor_total_produto?: string | number;
   venda_id?: number;
   produto?: {
@@ -133,10 +134,7 @@ export interface ItemVenda {
   };
   criado_em?: string;
   atualizado_em?: string;
-  // Campos legados para compatibilidade
   produto_nome?: string;
-  custo_fifo?: number;
-  lucro_item?: number;
 }
 
 // Interface da venda
@@ -144,17 +142,10 @@ export interface Venda {
   id: number;
   cliente_id: number;
   observacoes?: string;
-  funcionario_separacao_id?: number | null;
   total_venda: string | number;
-  situacao_pedido: SituacaoPedido;
-  situacao_pagamento?: SituacaoPagamento;
-  data_venda: string; // Campo real do backend
-  data_separacao?: string | null;
-  funcionario_separacao?: {
-    id: number;
-    nome: string;
-    email: string;
-  } | null;
+  lucro_bruto_total?: string | number; // novo campo
+  situacao_pagamento: SituacaoPagamento;
+  data_venda: string;
   cliente?: {
     id: number;
     nome: string;
@@ -172,19 +163,10 @@ export interface Venda {
   itens: ItemVenda[];
   criado_em?: string;
   atualizado_em?: string;
-  // Nova estrutura de lucro bruto
-  lucro_bruto?: LucroBruto;
-  // Campos legados para compatibilidade
   cliente_nome?: string;
-  data_pedido?: string;
-  custos_fifo?: {
-    custo_total: number;
-    lucro_bruto: number;
-    margem_percentual: string;
-  };
 }
 
-export interface VendaRapidaPayload  {
+export interface VendaRapidaPayload {
   produtos: {
     produto_id: number;
     quantidade: number;
@@ -192,7 +174,7 @@ export interface VendaRapidaPayload  {
   }[];
   cliente_id?: number | null;
   observacoes?: string;
-};
+}
 
 // Interface da entrada de estoque
 export interface EntradaEstoque {
@@ -282,22 +264,15 @@ export interface FormItemVenda {
   quantidade: number;
   tipo_medida: string; // "kg", "un", etc.
   valor_unitario: number;
+  custo: number; // custo unitário informado na venda
+  lucro_bruto: number;
 }
 
 export interface FormVenda {
   cliente_id: number;
   observacoes?: string;
   itens: FormItemVenda[];
-}
-
-// Interface para atualização de separação
-export interface FormSeparacaoItem {
-  produto_id: number;
-  quantidade_real: number;
-}
-
-export interface FormSeparacao {
-  produtos_separados: FormSeparacaoItem[];
+  situacao_pagamento: SituacaoPagamento;
 }
 
 export interface FormEntradaEstoque {
@@ -393,7 +368,6 @@ export interface FiltroVendas {
   cliente_id?: number;
   data_inicio?: string;
   data_fim?: string;
-  situacao_pedido?: SituacaoPedido;
   situacao_pagamento?: SituacaoPagamento;
   skip?: number;
   limit?: number;

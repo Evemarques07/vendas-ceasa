@@ -81,6 +81,11 @@ export function ProdutosPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Novo estado para controlar imagens com erro
+  const [imagensComErro, setImagensComErro] = useState<{
+    [id: number]: boolean;
+  }>({});
+
   const showNotification = (message: string, type: "success" | "error") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
@@ -469,21 +474,21 @@ export function ProdutosPage() {
                 >
                   <div className="relative">
                     <div className="aspect-w-1 aspect-h-1 w-full h-48 bg-gray-100 flex items-center justify-center">
-                      <img
-                        src={imageUrl}
-                        alt={p.nome}
-                        className="w-full h-full object-cover"
-                        style={{ display: "block" }}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.style.display = "none";
-                          const fallback = document.createElement("div");
-                          fallback.className =
-                            "flex items-center justify-center w-full h-full";
-                          fallback.innerHTML = `<svg class='w-16 h-16 text-gray-300' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path stroke-linecap='round' stroke-linejoin='round' d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' /></svg>`;
-                          e.currentTarget.parentNode?.appendChild(fallback);
-                        }}
-                      />
+                      {!imagensComErro[p.id] ? (
+                        <img
+                          src={imageUrl}
+                          alt={p.nome}
+                          className="w-full h-full object-cover"
+                          onError={() =>
+                            setImagensComErro((prev) => ({
+                              ...prev,
+                              [p.id]: true,
+                            }))
+                          }
+                        />
+                      ) : (
+                        <FiImage className="w-16 h-16 text-gray-300" />
+                      )}
                     </div>
                     <span
                       className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full text-white ${

@@ -6,15 +6,12 @@ import {
   estoqueService,
   relatoriosService,
   clientesService,
-  produtosService,
 } from "@/services/api";
+
 import type {
-  FluxoCaixa,
   Rentabilidade,
-  AlertasEstoque,
   RelatorioPagamentosPendentes,
   RelatorioHistoricoVendas,
-  Produto,
   RelatorioResumoFinanceiro,
   RelatorioDashboardVendas,
   RelatorioClientesInadimplentes,
@@ -24,22 +21,18 @@ import type {
 export function RelatoriosPage() {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    | "fluxo"
     | "rentabilidade"
-    | "alertas"
     | "pagamentos"
     | "historico"
     | "financeiro"
     | "dashboard"
     | "inadimplentes"
-  >("fluxo");
+  >("rentabilidade");
 
   // Estados dos relatórios existentes
-  const [fluxoCaixa, setFluxoCaixa] = useState<FluxoCaixa | null>(null);
   const [rentabilidade, setRentabilidade] = useState<Rentabilidade | null>(
     null
   );
-  const [alertas, setAlertas] = useState<AlertasEstoque | null>(null);
 
   // Estados dos novos relatórios financeiros
   const [pagamentosPendentes, setPagamentosPendentes] =
@@ -53,14 +46,8 @@ export function RelatoriosPage() {
   const [clientesInadimplentes, setClientesInadimplentes] =
     useState<RelatorioClientesInadimplentes | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
 
   // Estados dos filtros
-  const [filtrosFluxo, setFiltrosFluxo] = useState({
-    data_inicio: "",
-    data_fim: "",
-    produto_id: "",
-  });
 
   const [filtrosRentabilidade, setFiltrosRentabilidade] = useState({
     data_inicio: "",
@@ -100,9 +87,7 @@ export function RelatoriosPage() {
   });
 
   useEffect(() => {
-    if (activeTab === "alertas") {
-      carregarAlertas();
-    } else if (activeTab === "pagamentos") {
+    if (activeTab === "pagamentos") {
       carregarClientes();
     } else if (activeTab === "historico") {
       carregarClientes();
@@ -110,31 +95,29 @@ export function RelatoriosPage() {
       carregarDashboardVendas();
     } else if (activeTab === "inadimplentes") {
       carregarClientesInadimplentes();
-    } else if (activeTab === "fluxo") {
-      carregarProdutos();
     }
   }, [activeTab]);
 
-  const carregarFluxoCaixa = async () => {
-    try {
-      setLoading(true);
-      const filtros: any = {};
+  // const carregarFluxoCaixa = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const filtros: any = {};
 
-      if (filtrosFluxo.data_inicio)
-        filtros.data_inicio = filtrosFluxo.data_inicio;
-      if (filtrosFluxo.data_fim) filtros.data_fim = filtrosFluxo.data_fim;
-      if (filtrosFluxo.produto_id)
-        filtros.produto_id = Number(filtrosFluxo.produto_id);
+  //     if (filtrosFluxo.data_inicio)
+  //       filtros.data_inicio = filtrosFluxo.data_inicio;
+  //     if (filtrosFluxo.data_fim) filtros.data_fim = filtrosFluxo.data_fim;
+  //     if (filtrosFluxo.produto_id)
+  //       filtros.produto_id = Number(filtrosFluxo.produto_id);
 
-      const resultado = await estoqueService.obterFluxoCaixa(filtros);
-      setFluxoCaixa(resultado);
-    } catch (error) {
-      console.error("Erro ao carregar fluxo de caixa:", error);
-      alert("Erro ao carregar fluxo de caixa");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     const resultado = await estoqueService.obterFluxoCaixa(filtros);
+  //     setFluxoCaixa(resultado);
+  //   } catch (error) {
+  //     console.error("Erro ao carregar fluxo de caixa:", error);
+  //     alert("Erro ao carregar fluxo de caixa");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const carregarRentabilidade = async () => {
     if (!filtrosRentabilidade.data_inicio || !filtrosRentabilidade.data_fim) {
@@ -159,28 +142,28 @@ export function RelatoriosPage() {
     }
   };
 
-  const carregarAlertas = async () => {
-    try {
-      setLoading(true);
-      console.log("Carregando alertas...");
-      const resultado = await estoqueService.obterAlertas();
-      console.log("Resultado dos alertas:", resultado);
-      setAlertas(resultado);
-    } catch (error) {
-      console.error("Erro ao carregar alertas:", error);
-      setAlertas({
-        data: {
-          produtos_estoque_baixo: [],
-          produtos_sem_estoque: [],
-        },
-        total_alertas: 0,
-        message: "Erro ao carregar alertas",
-        success: false,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const carregarAlertas = async () => {
+  //   try {
+  //     setLoading(true);
+  //     console.log("Carregando alertas...");
+  //     const resultado = await estoqueService.obterAlertas();
+  //     console.log("Resultado dos alertas:", resultado);
+  //     setAlertas(resultado);
+  //   } catch (error) {
+  //     console.error("Erro ao carregar alertas:", error);
+  //     setAlertas({
+  //       data: {
+  //         produtos_estoque_baixo: [],
+  //         produtos_sem_estoque: [],
+  //       },
+  //       total_alertas: 0,
+  //       message: "Erro ao carregar alertas",
+  //       success: false,
+  //     });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const formatarMoeda = (valor: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -231,11 +214,11 @@ export function RelatoriosPage() {
     }
   };
 
-  const obterNomeProduto = (produtoId: number): string => {
-    const produto = produtos.find((p) => p.id === produtoId);
-    return produto ? produto.nome : `Produto ID: ${produtoId}`;
-  };
-
+  // const obterNomeProduto = (produtoId: number): string => {
+  //   const produto = produtos.find((p) => p.id === produtoId);
+  //   return produto ? produto.nome : `Produto ID: ${produtoId}`;
+  // };
+  //alertas de estoque
   // ===== FUNÇÕES PARA RELATÓRIOS FINANCEIROS =====
 
   const carregarClientes = async () => {
@@ -244,15 +227,6 @@ export function RelatoriosPage() {
       setClientes(resultado.clientes || []);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
-    }
-  };
-
-  const carregarProdutos = async () => {
-    try {
-      const resultado = await produtosService.listar();
-      setProdutos(resultado.produtos || []);
-    } catch (error) {
-      console.error("Erro ao carregar produtos:", error);
     }
   };
 
@@ -390,16 +364,6 @@ export function RelatoriosPage() {
         {/* Mobile: Grid de botões (até 767px) */}
         <div className="grid grid-cols-2 gap-2 md:hidden mb-4">
           <button
-            onClick={() => setActiveTab("fluxo")}
-            className={`p-3 rounded-lg border-2 font-medium text-xs text-center transition-colors ${
-              activeTab === "fluxo"
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-            }`}
-          >
-            💰 Fluxo de Caixa
-          </button>
-          <button
             onClick={() => setActiveTab("rentabilidade")}
             className={`p-3 rounded-lg border-2 font-medium text-xs text-center transition-colors ${
               activeTab === "rentabilidade"
@@ -409,16 +373,7 @@ export function RelatoriosPage() {
           >
             📊 Rentabilidade
           </button>
-          <button
-            onClick={() => setActiveTab("alertas")}
-            className={`p-3 rounded-lg border-2 font-medium text-xs text-center transition-colors ${
-              activeTab === "alertas"
-                ? "border-blue-500 bg-blue-50 text-blue-700"
-                : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
-            }`}
-          >
-            ⚠️ Alertas Estoque
-          </button>
+
           <button
             onClick={() => setActiveTab("pagamentos")}
             className={`p-3 rounded-lg border-2 font-medium text-xs text-center transition-colors ${
@@ -475,16 +430,6 @@ export function RelatoriosPage() {
         <div className="border-b border-gray-200 hidden md:block">
           <nav className="-mb-px flex space-x-2 sm:space-x-4 lg:space-x-8 overflow-x-auto">
             <button
-              onClick={() => setActiveTab("fluxo")}
-              className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                activeTab === "fluxo"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Fluxo de Caixa
-            </button>
-            <button
               onClick={() => setActiveTab("rentabilidade")}
               className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
                 activeTab === "rentabilidade"
@@ -494,16 +439,7 @@ export function RelatoriosPage() {
             >
               Rentabilidade
             </button>
-            <button
-              onClick={() => setActiveTab("alertas")}
-              className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                activeTab === "alertas"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Alertas de Estoque
-            </button>
+
             <button
               onClick={() => setActiveTab("pagamentos")}
               className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
@@ -559,258 +495,6 @@ export function RelatoriosPage() {
       </div>
 
       {loading && <Loading />}
-
-      {/* Tab: Fluxo de Caixa */}
-      {activeTab === "fluxo" && (
-        <div className="space-y-6">
-          {/* Filtros */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium mb-4">
-              Filtros do Fluxo de Caixa
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data Início
-                </label>
-                <Input
-                  type="date"
-                  value={filtrosFluxo.data_inicio}
-                  onChange={(e) =>
-                    setFiltrosFluxo((prev) => ({
-                      ...prev,
-                      data_inicio: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Data Fim
-                </label>
-                <Input
-                  type="date"
-                  value={filtrosFluxo.data_fim}
-                  onChange={(e) =>
-                    setFiltrosFluxo((prev) => ({
-                      ...prev,
-                      data_fim: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Produto (opcional)
-                </label>
-                <select
-                  value={filtrosFluxo.produto_id}
-                  onChange={(e) =>
-                    setFiltrosFluxo((prev) => ({
-                      ...prev,
-                      produto_id: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">Todos os produtos</option>
-                  {produtos.map((produto) => (
-                    <option key={produto.id} value={produto.id}>
-                      {produto.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
-                <Button onClick={carregarFluxoCaixa} className="w-full">
-                  Gerar Relatório
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Resultados do Fluxo de Caixa */}
-          {fluxoCaixa && (
-            <div className="space-y-6">
-              {/* Cards de Resumo */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                <div className="bg-green-50 rounded-lg p-4 flex flex-col items-center justify-center">
-                  <div className="text-sm font-medium text-green-600 text-center">
-                    Total Entradas
-                  </div>
-                  <div className="text-2xl font-bold text-green-900 text-center">
-                    {formatarMoeda(Number(fluxoCaixa.total_entradas))}
-                  </div>
-                </div>
-                <div className="bg-red-50 rounded-lg p-4 flex flex-col items-center justify-center">
-                  <div className="text-sm font-medium text-red-600 text-center">
-                    Total Saídas
-                  </div>
-                  <div className="text-2xl font-bold text-red-900 text-center">
-                    {formatarMoeda(Number(fluxoCaixa.total_saidas))}
-                  </div>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-4 flex flex-col items-center justify-center">
-                  <div className="text-sm font-medium text-blue-600 text-center">
-                    Saldo
-                  </div>
-                  <div className="text-2xl font-bold text-blue-900 text-center">
-                    {formatarMoeda(Number(fluxoCaixa.saldo))}
-                  </div>
-                </div>
-                <div className="bg-purple-50 rounded-lg p-4 flex flex-col items-center justify-center">
-                  <div className="text-sm font-medium text-purple-600 text-center">
-                    Lucro Bruto
-                  </div>
-                  <div className="text-2xl font-bold text-purple-900 text-center">
-                    {formatarMoeda(Number(fluxoCaixa.lucro_bruto_total))}
-                  </div>
-                  <div className="text-sm text-purple-600 text-center">
-                    Margem: {Number(fluxoCaixa.margem_media).toFixed(2)}%
-                  </div>
-                </div>
-                <div className="bg-orange-50 rounded-lg p-4 flex flex-col items-center justify-center">
-                  <div className="text-sm font-medium text-orange-600 text-center">
-                    Vendas
-                  </div>
-                  <div className="text-2xl font-bold text-orange-900 text-center">
-                    {fluxoCaixa.quantidade_vendas}
-                  </div>
-                  <div className="text-sm text-orange-600 text-center">
-                    Quantidade
-                  </div>
-                </div>
-              </div>
-
-              {/* Tabela de Movimentações */}
-              {/* Mobile: Cards de Movimentações */}
-              <div className="md:hidden space-y-3">
-                {fluxoCaixa.movimentacoes.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    Nenhuma movimentação encontrada
-                  </div>
-                ) : (
-                  fluxoCaixa.movimentacoes.map((mov) => (
-                    <div
-                      key={mov.id}
-                      className="bg-white rounded-lg shadow p-4 flex flex-col gap-1"
-                    >
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium text-gray-700">
-                          {mov.data ? formatarData(mov.data) : "-"}
-                        </span>
-                        <span
-                          className={`font-bold ${
-                            mov.tipo === "entrada"
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
-                          {mov.tipo.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Produto: {obterNomeProduto(mov.produto_id)}
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-xs mt-1">
-                        <span>Qtd: {mov.quantidade}</span>
-                        <span>
-                          Unit: {formatarMoeda(Number(mov.preco_unitario))}
-                        </span>
-                        <span>
-                          Total: {formatarMoeda(Number(mov.valor_total))}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Obs: {mov.observacoes || "-"}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              {/* Desktop: Tabela de Movimentações */}
-              <div className="bg-white rounded-lg shadow overflow-hidden hidden md:block">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Movimentações ({fluxoCaixa.movimentacoes.length})
-                  </h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Data
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tipo
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Produto
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Quantidade
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Valor Unit.
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Valor Total
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Observações
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {fluxoCaixa.movimentacoes.map((mov) => (
-                        <tr key={mov.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {mov.data ? formatarData(mov.data) : "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                mov.tipo === "entrada"
-                                  ? "bg-green-100 text-green-800"
-                                  : mov.tipo === "saida"
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}
-                            >
-                              {mov.tipo.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {obterNomeProduto(mov.produto_id)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {mov.quantidade}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatarMoeda(Number(mov.preco_unitario))}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {formatarMoeda(Number(mov.valor_total))}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {mov.observacoes || "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {fluxoCaixa.movimentacoes.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    Nenhuma movimentação encontrada
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Tab: Rentabilidade */}
       {activeTab === "rentabilidade" && (
@@ -1010,183 +694,6 @@ export function RelatoriosPage() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab: Alertas */}
-      {activeTab === "alertas" && (
-        <div className="space-y-6">
-          {alertas && (
-            <>
-              {/* Cards de Resumo */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-yellow-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-yellow-600">
-                    Produtos em Baixo Estoque
-                  </div>
-                  <div className="text-2xl font-bold text-yellow-900">
-                    {alertas?.data?.produtos_estoque_baixo?.length || 0}
-                  </div>
-                </div>
-                <div className="bg-red-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-red-600">
-                    Produtos Sem Estoque
-                  </div>
-                  <div className="text-2xl font-bold text-red-900">
-                    {alertas?.data?.produtos_sem_estoque?.length || 0}
-                  </div>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-sm font-medium text-blue-600">
-                    Total de Alertas
-                  </div>
-                  <div className="text-2xl font-bold text-blue-900">
-                    {alertas?.total_alertas || 0}
-                  </div>
-                </div>
-              </div>
-
-              {/* Lista de Alertas */}
-              {/* Mobile: Cards de Alertas */}
-              <div className="md:hidden space-y-3">
-                {alertas?.total_alertas === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-green-600 font-medium text-lg">
-                      ✅ Nenhum alerta de estoque!
-                    </div>
-                    <div className="text-sm text-gray-500 mt-2">
-                      Todos os produtos estão com estoque adequado.
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {(alertas?.data?.produtos_estoque_baixo || []).map(
-                      (produto) => (
-                        <div
-                          key={`baixo-${produto.produto_id}`}
-                          className="bg-yellow-50 rounded-lg p-4 flex flex-col gap-1 border border-yellow-200"
-                        >
-                          <div className="font-bold text-yellow-800">
-                            {produto.produto}
-                          </div>
-                          <div className="text-xs text-yellow-700">
-                            Estoque baixo: {produto.quantidade_atual}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Mínimo ideal: {produto.estoque_minimo}
-                          </div>
-                        </div>
-                      )
-                    )}
-                    {(alertas?.data?.produtos_sem_estoque || []).map(
-                      (produto) => (
-                        <div
-                          key={`sem-${produto.produto_id}`}
-                          className="bg-red-50 rounded-lg p-4 flex flex-col gap-1 border border-red-200"
-                        >
-                          <div className="font-bold text-red-800">
-                            {produto.produto}
-                          </div>
-                          <div className="text-xs text-red-700">
-                            Sem estoque!
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Mínimo ideal: {produto.estoque_minimo}
-                          </div>
-                        </div>
-                      )
-                    )}
-                  </>
-                )}
-              </div>
-              {/* Desktop: Tabela de Alertas */}
-              <div className="bg-white rounded-lg shadow overflow-hidden hidden md:block">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    Alertas de Estoque ({alertas?.total_alertas || 0})
-                  </h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Produto
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Qtd. Atual
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Estoque Mínimo
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {(alertas?.data?.produtos_estoque_baixo || []).map(
-                        (produto) => (
-                          <tr
-                            key={`baixo-${produto.produto_id}`}
-                            className="hover:bg-gray-50"
-                          >
-                            <td className="px-6 py-4 whitespace-nowrap font-bold text-yellow-800">
-                              {produto.produto}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-yellow-700">
-                              {produto.quantidade_atual}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {produto.estoque_minimo}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                BAIXO ESTOQUE
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      )}
-                      {(alertas?.data?.produtos_sem_estoque || []).map(
-                        (produto) => (
-                          <tr
-                            key={`sem-${produto.produto_id}`}
-                            className="hover:bg-gray-50"
-                          >
-                            <td className="px-6 py-4 whitespace-nowrap font-bold text-red-800">
-                              {produto.produto}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-red-700">
-                              0
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {produto.estoque_minimo}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                SEM ESTOQUE
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {alertas?.total_alertas === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-green-600 font-medium text-lg">
-                      ✅ Nenhum alerta de estoque!
-                    </div>
-                    <div className="text-sm text-gray-500 mt-2">
-                      Todos os produtos estão com estoque adequado.
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
           )}
         </div>
       )}

@@ -14,7 +14,6 @@ import {
   Users,
   Box,
   ShoppingCart,
-  Warehouse,
   BarChart3,
   ListTodo,
   Menu,
@@ -194,9 +193,7 @@ export function Layout({ children }: LayoutProps) {
     { name: "Clientes", href: "/clientes", icon: <Users size={20} /> },
     { name: "Produtos", href: "/produtos", icon: <Box size={20} /> },
     { name: "Vendas", href: "/vendas", icon: <ShoppingCart size={20} /> },
-    { name: "Estoque", href: "/estoque", icon: <Warehouse size={20} /> },
     { name: "Relatórios", href: "/relatorios", icon: <BarChart3 size={20} /> },
-    { name: "Usuários", href: "/usuarios", icon: <Users size={20} /> },
   ];
   const navigationFuncionario = [
     { name: "Dashboard", href: "/dashboard", icon: <GaugeCircle size={20} /> },

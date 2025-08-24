@@ -4,9 +4,6 @@ import axios, { type AxiosResponse, AxiosError } from "axios";
 import type {
   Usuario,
   FormUsuarioCreate,
-  // FormUsuarioChangePassword,
-  //ListaPaginadaUsuarios,
-  //FiltroUsuarios,
   Cliente,
   Produto,
   Venda,
@@ -15,7 +12,6 @@ import type {
   FormCliente,
   FormProduto,
   FormVenda,
-  FormSeparacaoItem,
   FormEntradaEstoque,
   FormInventario,
   ApiResponse,
@@ -873,65 +869,17 @@ export const vendasService = {
   },
   async listar(filtros?: FiltroVendas): Promise<ListaPaginadaVendas> {
     try {
-      console.log("=== LISTANDO VENDAS ===");
       const params: any = {};
       if (filtros?.skip !== undefined) params.skip = filtros.skip;
       if (filtros?.limit !== undefined) params.limit = filtros.limit;
       if (filtros?.cliente_id) params.cliente_id = filtros.cliente_id;
-      if (filtros?.situacao_pedido)
-        params.situacao_pedido = filtros.situacao_pedido;
       if (filtros?.situacao_pagamento)
         params.situacao_pagamento = filtros.situacao_pagamento;
-
-      console.log("Params:", params);
-      console.log("URL:", `${api.defaults.baseURL}/vendas`);
-
       const response = await api.get<any>("/vendas/", { params });
-      console.log("Response listar vendas:", response.data);
-
-      // Mapear a estrutura da API para o formato esperado
       const apiData = response.data.data || response.data;
       return {
-        vendas: (apiData.items || apiData || []).map((venda: any) => ({
-          id: venda.id,
-          cliente_id: venda.cliente_id,
-          cliente_nome: venda.cliente_nome,
-          cliente: venda.cliente,
-          data_pedido: venda.data_pedido,
-          data_venda: venda.data_venda, // Inclui data_venda
-          situacao_pedido: venda.situacao_pedido,
-          situacao_pagamento: venda.situacao_pagamento,
-          total_venda: Number(venda.total_venda) || 0,
-          observacoes: venda.observacoes,
-          funcionario_separacao_id: venda.funcionario_separacao_id,
-          data_separacao: venda.data_separacao,
-          funcionario_separacao: venda.funcionario_separacao,
-          itens: (venda.itens || []).map((item: any) => ({
-            id: item.id,
-            produto_id: item.produto_id,
-            produto_nome: item.produto_nome,
-            produto: item.produto,
-            quantidade: Number(item.quantidade) || 0,
-            quantidade_real: item.quantidade_real
-              ? Number(item.quantidade_real)
-              : undefined,
-            tipo_medida: item.tipo_medida,
-            valor_unitario: Number(item.valor_unitario) || 0,
-            valor_total_produto: Number(item.valor_total_produto) || 0,
-            custo_fifo: item.custo_fifo ? Number(item.custo_fifo) : undefined,
-            lucro_item: item.lucro_item ? Number(item.lucro_item) : undefined,
-          })),
-          custos_fifo: venda.custos_fifo
-            ? {
-                custo_total: Number(venda.custos_fifo.custo_total) || 0,
-                lucro_bruto: Number(venda.custos_fifo.lucro_bruto) || 0,
-                margem_percentual: venda.custos_fifo.margem_percentual || "0",
-              }
-            : undefined,
-        })),
-        total:
-          apiData.paginacao?.totalItens ||
-          (apiData.items || apiData || []).length,
+        vendas: apiData.items || [],
+        total: apiData.paginacao?.totalItens || 0,
         skip: apiData.paginacao
           ? (apiData.paginacao.pagina - 1) * apiData.paginacao.itensPorPagina
           : 0,
@@ -956,14 +904,10 @@ export const vendasService = {
         id: venda.id,
         cliente_id: venda.cliente_id,
         cliente_nome: venda.cliente_nome,
-        data_pedido: venda.data_pedido,
-        data_venda: venda.data_venda || venda.data_pedido,
-        situacao_pedido: venda.situacao_pedido,
+        data_venda: venda.data_venda,
         situacao_pagamento: venda.situacao_pagamento,
         total_venda: Number(venda.total_venda) || 0,
         observacoes: venda.observacoes,
-        funcionario_separacao: venda.funcionario_separacao,
-        data_separacao: venda.data_separacao,
         cliente: venda.cliente,
         itens: (venda.itens || []).map((item: any) => ({
           id: item.id,
@@ -971,46 +915,12 @@ export const vendasService = {
           produto_nome: item.produto_nome,
           produto: item.produto,
           quantidade: Number(item.quantidade) || 0,
-          quantidade_real: item.quantidade_real
-            ? Number(item.quantidade_real)
-            : undefined,
           tipo_medida: item.tipo_medida,
           valor_unitario: Number(item.valor_unitario) || 0,
           valor_total_produto: Number(item.valor_total_produto) || 0,
-          custo_fifo: item.custo_fifo ? Number(item.custo_fifo) : undefined,
-          lucro_item: item.lucro_item ? Number(item.lucro_item) : undefined,
           criado_em: item.criado_em,
           atualizado_em: item.atualizado_em,
         })),
-        // Nova estrutura de lucro bruto
-        lucro_bruto: venda.lucro_bruto
-          ? {
-              receita_total: Number(venda.lucro_bruto.receita_total) || 0,
-              custo_total: Number(venda.lucro_bruto.custo_total) || 0,
-              lucro_bruto: Number(venda.lucro_bruto.lucro_bruto) || 0,
-              margem_bruta_percentual:
-                Number(venda.lucro_bruto.margem_bruta_percentual) || 0,
-              detalhes_produtos: (
-                venda.lucro_bruto.detalhes_produtos || []
-              ).map((detalhe: any) => ({
-                produto_id: detalhe.produto_id,
-                produto_nome: detalhe.produto_nome,
-                quantidade_vendida: Number(detalhe.quantidade_vendida) || 0,
-                receita_produto: Number(detalhe.receita_produto) || 0,
-                custo_produto: Number(detalhe.custo_produto) || 0,
-                lucro_produto: Number(detalhe.lucro_produto) || 0,
-                margem_produto: Number(detalhe.margem_produto) || 0,
-              })),
-            }
-          : undefined,
-        // Estrutura legada para compatibilidade
-        custos_fifo: venda.custos_fifo
-          ? {
-              custo_total: Number(venda.custos_fifo.custo_total) || 0,
-              lucro_bruto: Number(venda.custos_fifo.lucro_bruto) || 0,
-              margem_percentual: venda.custos_fifo.margem_percentual || "0",
-            }
-          : undefined,
         criado_em: venda.criado_em,
         atualizado_em: venda.atualizado_em,
       };
@@ -1034,6 +944,8 @@ export const vendasService = {
           quantidade: Number(item.quantidade),
           tipo_medida: item.tipo_medida,
           valor_unitario: Number(item.valor_unitario),
+          custo: Number((item as any).custo),
+          lucro_bruto: Number((item as any).lucro_bruto),
         })),
       };
 
@@ -1048,9 +960,7 @@ export const vendasService = {
         id: venda.id,
         cliente_id: venda.cliente_id,
         cliente_nome: venda.cliente_nome,
-        data_pedido: venda.data_pedido,
         data_venda: venda.data_venda || venda.data_pedido,
-        situacao_pedido: venda.situacao_pedido,
         situacao_pagamento: venda.situacao_pagamento,
         total_venda: Number(venda.total_venda) || 0,
         observacoes: venda.observacoes,
@@ -1073,138 +983,6 @@ export const vendasService = {
     }
   },
 
-  async atualizarSeparacao(
-    id: number,
-    produtos_separados: FormSeparacaoItem[]
-  ): Promise<Venda> {
-    try {
-      console.log("=== ATUALIZANDO SEPARAÇÃO ===");
-      console.log("ID da venda:", id);
-      console.log("Produtos separados:", produtos_separados);
-
-      const dadosParaAPI = {
-        produtos_separados: produtos_separados.map((item) => ({
-          produto_id: item.produto_id,
-          quantidade_real: Number(item.quantidade_real),
-        })),
-      };
-
-      console.log("Dados para API:", dadosParaAPI);
-
-      const response = await api.put<any>(
-        `/vendas/${id}/separacao`,
-        dadosParaAPI
-      );
-      console.log("Separação atualizada:", response.data);
-
-      const venda = response.data.data || response.data;
-      return {
-        id: venda.id,
-        cliente_id: venda.cliente_id,
-        cliente_nome: venda.cliente_nome,
-        cliente: venda.cliente,
-        data_pedido: venda.data_pedido,
-        data_venda: venda.data_venda || venda.data_pedido,
-        situacao_pedido: venda.situacao_pedido,
-        situacao_pagamento: venda.situacao_pagamento,
-        total_venda: Number(venda.total_venda) || 0,
-        observacoes: venda.observacoes,
-        funcionario_separacao_id: venda.funcionario_separacao_id,
-        data_separacao: venda.data_separacao,
-        funcionario_separacao: venda.funcionario_separacao,
-        itens: (venda.itens || []).map((item: any) => ({
-          id: item.id,
-          produto_id: item.produto_id,
-          produto_nome: item.produto_nome,
-          produto: item.produto,
-          quantidade: Number(item.quantidade) || 0,
-          quantidade_real: item.quantidade_real
-            ? Number(item.quantidade_real)
-            : undefined,
-          tipo_medida: item.tipo_medida,
-          valor_unitario: Number(item.valor_unitario) || 0,
-          valor_total_produto: Number(item.valor_total_produto) || 0,
-          custo_fifo: item.custo_fifo ? Number(item.custo_fifo) : undefined,
-          lucro_item: item.lucro_item ? Number(item.lucro_item) : undefined,
-        })),
-        custos_fifo: venda.custos_fifo
-          ? {
-              custo_total: Number(venda.custos_fifo.custo_total) || 0,
-              lucro_bruto: Number(venda.custos_fifo.lucro_bruto) || 0,
-              margem_percentual: venda.custos_fifo.margem_percentual || "0",
-            }
-          : undefined,
-      };
-    } catch (error) {
-      console.error("Erro ao atualizar separação:", error);
-
-      // Log detalhado do erro para debug
-      if (error instanceof AxiosError) {
-        console.error("Detalhes do erro HTTP:", {
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          headers: error.response?.headers,
-          config: {
-            method: error.config?.method,
-            url: error.config?.url,
-            data: error.config?.data,
-          },
-        });
-
-        // Log específico da resposta de erro
-        console.error("Resposta de erro completa:", error.response?.data);
-
-        // Se for um objeto, fazer stringify para ver o conteúdo
-        if (error.response?.data && typeof error.response.data === "object") {
-          console.error(
-            "Erro serializado:",
-            JSON.stringify(error.response.data, null, 2)
-          );
-        }
-      }
-
-      return handleApiError(error as AxiosError);
-    }
-  },
-
-  async cancelarSeparacao(id: number): Promise<Venda> {
-    try {
-      console.log("=== CANCELANDO SEPARAÇÃO ===");
-      console.log("ID da venda:", id);
-
-      const response = await api.put<any>(`/vendas/${id}/cancelar-separacao`);
-      console.log("Separação cancelada:", response.data);
-
-      const venda = response.data.data || response.data;
-      return {
-        id: venda.id,
-        cliente_id: venda.cliente_id,
-        cliente_nome: venda.cliente_nome,
-        data_pedido: venda.data_pedido,
-        data_venda: venda.data_venda || venda.data_pedido,
-        situacao_pedido: venda.situacao_pedido,
-        situacao_pagamento: venda.situacao_pagamento,
-        total_venda: Number(venda.total_venda) || 0,
-        observacoes: venda.observacoes,
-        itens: (venda.itens || []).map((item: any) => ({
-          id: item.id,
-          produto_id: item.produto_id,
-          produto_nome: item.produto_nome,
-          quantidade: Number(item.quantidade) || 0,
-          quantidade_real: item.quantidade_real
-            ? Number(item.quantidade_real)
-            : undefined,
-          tipo_medida: item.tipo_medida,
-          valor_unitario: Number(item.valor_unitario) || 0,
-          valor_total_produto: Number(item.valor_total_produto) || 0,
-        })),
-      };
-    } catch (error) {
-      console.error("Erro ao cancelar separação:", error);
-      return handleApiError(error as AxiosError);
-    }
-  },
-
   async marcarComoPago(id: number): Promise<Venda> {
     try {
       console.log("=== MARCANDO COMO PAGO ===");
@@ -1218,9 +996,7 @@ export const vendasService = {
         id: venda.id,
         cliente_id: venda.cliente_id,
         cliente_nome: venda.cliente_nome,
-        data_pedido: venda.data_pedido,
         data_venda: venda.data_venda || venda.data_pedido,
-        situacao_pedido: venda.situacao_pedido,
         situacao_pagamento: venda.situacao_pagamento,
         total_venda: Number(venda.total_venda) || 0,
         observacoes: venda.observacoes,
@@ -1247,19 +1023,6 @@ export const vendasService = {
     const response = await api.post("/vendas/venda-rapida", data);
     return response.data;
   },
-
-  //   async excluir(id: number): Promise<{ message: string; success: boolean }> {
-  //   try {
-  //     console.log("=== EXCLUINDO VENDA ===");
-  //     console.log("ID da venda:", id);
-  //     const response = await api.delete<any>(`/vendas/${id}`);
-  //     console.log("Venda excluída:", response.data);
-  //     return response.data;
-  //   } catch (error) {
-  //     console.error("Erro ao excluir venda:", error);
-  //     return handleApiError(error as AxiosError);
-  //   }
-  // },
 };
 
 // === ESTOQUE ===
