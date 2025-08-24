@@ -5,13 +5,13 @@ import DashboardPage from "@/pages/DashboardPage";
 import { ClientesPage } from "@/pages/ClientesPage";
 import { ProdutosPage } from "@/pages/ProdutosPage";
 import { VendasPage } from "@/pages/VendasPage";
-import { SeparacaoPage } from "@/pages/SeparacaoPage";
+// import { SeparacaoPage } from "@/pages/SeparacaoPage";
 import EstoquePage from "@/pages/EstoquePage";
 import { RelatoriosPage } from "@/pages/RelatoriosPage";
 import { AuthGuard } from "@/components/AuthGuard";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Layout } from "@/components/Layout";
-import { UsuariosPage } from "@/pages/UsuariosPage";
+// import { UsuariosPage } from "@/pages/UsuariosPage";
 
 export const router = createBrowserRouter([
   {
@@ -68,18 +68,7 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
   },
-  {
-    path: "/separacao",
-    element: (
-      <AuthGuard>
-        <RoleGuard allowedRoles={["funcionario"]}>
-          <Layout>
-            <SeparacaoPage />
-          </Layout>
-        </RoleGuard>
-      </AuthGuard>
-    ),
-  },
+  // Rota de separação removida
   {
     path: "/estoque",
     element: (
@@ -104,18 +93,7 @@ export const router = createBrowserRouter([
       </AuthGuard>
     ),
   },
-  {
-    path: "/usuarios",
-    element: (
-      <AuthGuard>
-        <RoleGuard allowedRoles={["administrador"]}>
-          <Layout>
-            <UsuariosPage />
-          </Layout>
-        </RoleGuard>
-      </AuthGuard>
-    ),
-  },
+  // Rota de usuários removida
   {
     path: "*",
     element: <Navigate to="/dashboard" replace />,
