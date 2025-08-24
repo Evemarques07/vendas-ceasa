@@ -317,15 +317,46 @@ export default function DashboardPage() {
                   faturamento: dados.valor_total,
                   lucro: dados.lucro_bruto_total,
                 }))}
-              margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+              margin={{ top: 20, right: 50, left: 0, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tickFormatter={(v: number) => `${v}`} />
               <YAxis
-                yAxisId="right"
+                yAxisId="faturamento"
                 orientation="right"
                 tickFormatter={(v: number) => formatarMoeda(Number(v))}
+                width={80}
+                label={{
+                  // value: "Faturamento",
+                  angle: -90,
+                  position: "insideRight",
+                  offset: 30,
+                }}
+                stroke="#22c55e"
+                axisLine={true}
+                tickLine={true}
+                mirror={false}
+                hide={false}
+                // domain={[0, 'auto']}
+              />
+              <YAxis
+                yAxisId="lucro"
+                orientation="right"
+                tickFormatter={(v: number) => formatarMoeda(Number(v))}
+                width={80}
+                label={{
+                  // value: "Lucro Bruto",
+                  angle: -90,
+                  position: "outsideRight",
+                  offset: 80,
+                }}
+                stroke="#a21caf"
+                axisLine={true}
+                tickLine={true}
+                mirror={false}
+                hide={false}
+                // domain={[0, 'auto']}
               />
               <Tooltip
                 formatter={(value: any, name: string) =>
@@ -343,7 +374,7 @@ export default function DashboardPage() {
                 radius={[4, 4, 0, 0]}
               />
               <Line
-                yAxisId="right"
+                yAxisId="faturamento"
                 type="monotone"
                 dataKey="faturamento"
                 name="Faturamento"
@@ -353,7 +384,7 @@ export default function DashboardPage() {
                 activeDot={{ r: 5 }}
               />
               <Line
-                yAxisId="right"
+                yAxisId="lucro"
                 type="monotone"
                 dataKey="lucro"
                 name="Lucro Bruto"

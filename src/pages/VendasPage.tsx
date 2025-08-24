@@ -1,3 +1,8 @@
+// Função para gerar PDF a partir do HTML estilizado e compartilhar
+import html2canvas from "html2canvas";
+
+// Função para gerar HTML estilizado da venda e abrir em nova aba
+
 import React, { useEffect, useState } from "react";
 import {
   vendasService,
@@ -14,65 +19,190 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+
+// Estendendo a interface do jsPDF para incluir o autoTable e evitar erros de TypeScript
+// (declarado em src/types/jspdf-autotable.d.ts)
+
 const PAGE_SIZE = 20;
 const situacoesPagamento: SituacaoPagamento[] = ["Pago", "Pendente"];
 
-// Tipo para filtros de vendas
+async function compartilharHTMLComoPDF(venda: Venda) {
+  // Cria o HTML estilizado em um elemento oculto
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.left = "-9999px";
+  container.style.top = "0";
+  container.style.width = "800px";
+  container.style.background = "#fff";
+  container.innerHTML = compartilharVendaComoHTMLString(venda);
+  document.body.appendChild(container);
+
+  // Usa html2canvas para capturar o HTML
+  const canvas = await html2canvas(container, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#fff",
+  });
+  document.body.removeChild(container);
+
+  // Define tamanho da página A4 em pixels (jsPDF usa 1pt = 1/72in, mas aqui usamos mm -> px)
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  // Calcula escala para caber na largura da página
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  // Adiciona a imagem e faz quebra de página se necessário
+  let remainingHeight = imgHeight;
+  let pageCanvasHeight = canvas.height;
+  let pageCanvasWidth = canvas.width;
+  let sY = 0;
+  const pagePxHeight = (canvas.width / imgWidth) * pageHeight;
+
+  while (remainingHeight > 0) {
+    // Cria um canvas temporário para cada página
+    const pageCanvas = document.createElement("canvas");
+    pageCanvas.width = pageCanvasWidth;
+    pageCanvas.height = Math.min(pagePxHeight, pageCanvasHeight - sY);
+    const ctx = pageCanvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      ctx.drawImage(
+        canvas,
+        0,
+        sY,
+        pageCanvasWidth,
+        pageCanvas.height,
+        0,
+        0,
+        pageCanvasWidth,
+        pageCanvas.height
+      );
+      const pageImgData = pageCanvas.toDataURL("image/png");
+      pdf.addImage(
+        pageImgData,
+        "PNG",
+        0,
+        0,
+        imgWidth,
+        (pageCanvas.height * imgWidth) / pageCanvasWidth
+      );
+      sY += pageCanvas.height;
+      remainingHeight -= (pageCanvas.height * imgWidth) / pageCanvasWidth;
+      if (remainingHeight > 0) pdf.addPage();
+    } else {
+      break;
+    }
+  }
+
+  // Compartilha ou faz download
+  const pdfBlob = pdf.output("blob");
+  const pdfFile = new File([pdfBlob], `Pedido_${venda.id}.pdf`, {
+    type: "application/pdf",
+  });
+  if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+    try {
+      await navigator.share({
+        files: [pdfFile],
+        title: `Pedido de Venda #${venda.id}`,
+        text: `Segue o pedido de venda #${venda.id}`,
+      });
+      return;
+    } catch (err) {
+      // fallback
+    }
+  }
+  // Fallback: download
+  pdf.save(`Pedido_${venda.id}.pdf`);
+}
+
+// Função que retorna o HTML estilizado como string (sem abrir nova aba)
+function compartilharVendaComoHTMLString(venda: Venda) {
+  const dataVenda = new Date(venda.data_venda).toLocaleString("pt-BR");
+  const itensHtml = venda.itens
+    .map(
+      (item) => `
+    <tr>
+      <td>${
+        item.produto?.nome || item.produto_nome || `ID ${item.produto_id}`
+      }</td>
+      <td style="text-align:center">${item.quantidade} ${item.tipo_medida}</td>
+      <td style="text-align:right">R$ ${Number(
+        item.valor_unitario ?? 0
+      ).toFixed(2)}</td>
+      <td style="text-align:right">R$ ${(
+        Number(item.quantidade ?? 0) * Number(item.valor_unitario ?? 0)
+      ).toFixed(2)}</td>
+    </tr>
+  `
+    )
+    .join("");
+  // Caminho da logo (ajuste se necessário)
+  const logoUrl = "/public/logoFrutosDaTerra.png";
+  return `
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; background: #f4f8fb; color: #222; max-width: 700px; margin: 32px auto; background: #fff; border-radius: 18px; box-shadow: 0 4px 24px #0002; padding: 40px 32px 32px 32px; border: 1.5px solid #e0e7ef;">
+      <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 18px;">
+        <img src="${logoUrl}" alt="Logo Frutos da Terra" style="height: 70px; width: 70px; object-fit: contain; border-radius: 12px; box-shadow: 0 2px 8px #0001; background: #fff; border: 1px solid #e0e0e0;" />
+        <div>
+          <h1 style="color: #2980b9; font-size: 2.1rem; margin: 0; font-weight: 700; letter-spacing: 1px;">Frutos da Terra</h1>
+          <div style="font-size: 1.1rem; color: #6b7280; font-weight: 500;">Hortifruti - Ceasa</div>
+        </div>
+      </div>
+      <div style="margin-bottom: 24px; border-bottom: 1.5px solid #e0e7ef; padding-bottom: 12px;">
+        <span style="font-size: 1.3rem; color: #2980b9; font-weight: 600;">Pedido de Venda #${
+          venda.id
+        }</span>
+      </div>
+      <div style="margin-bottom: 18px; display: flex; flex-wrap: wrap; gap: 24px;">
+        <div style="min-width: 220px;"><strong style="color: #555;">Cliente:</strong> ${
+          venda.cliente?.nome || venda.cliente_nome || "-"
+        }</div>
+        <div style="min-width: 120px;"><strong style="color: #555;">Data:</strong> ${dataVenda}</div>
+        <div style="min-width: 120px;"><strong style="color: #555;">Situação:</strong> ${
+          venda.situacao_pagamento
+        }</div>
+      </div>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 1.05rem;">
+        <thead>
+          <tr>
+            <th style="background: #2980b9; color: #fff; text-align: left; padding: 10px 8px; border-radius: 6px 0 0 0;">Produto</th>
+            <th style="background: #2980b9; color: #fff; text-align: center; padding: 10px 8px;">Qtd</th>
+            <th style="background: #2980b9; color: #fff; text-align: right; padding: 10px 8px;">Vl. Unitário</th>
+            <th style="background: #2980b9; color: #fff; text-align: right; padding: 10px 8px; border-radius: 0 6px 0 0;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itensHtml}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="3" style="text-align:right; font-weight:bold; color:#2980b9; border-top:2px solid #2980b9; padding:12px 8px; font-size:1.1rem;">TOTAL DO PEDIDO:</td>
+            <td style="text-align:right; font-weight:bold; color:#2980b9; border-top:2px solid #2980b9; padding:12px 8px; font-size:1.1rem;">R$ ${Number(
+              venda.total_venda ?? 0
+            ).toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+      ${
+        {}.hasOwnProperty.call(venda, "observacoes") && venda.observacoes
+          ? `<div style="margin-top:28px; background:#f1f5f9; padding:14px 18px; border-radius:8px; color:#555; font-size:1.05rem; border-left: 4px solid #2980b9;"><strong>Observações:</strong> ${venda.observacoes}</div>`
+          : ""
+      }
+      <div style="margin-top:38px; text-align:center; color:#2980b9; font-size:1.05rem; font-weight: 600; letter-spacing: 1px;">Pedido gerado por Frutos da Terra - Ceasa</div>
+    </div>
+  `;
+}
 type FiltrosVendas = {
   cliente_id: string;
   situacao_pagamento: SituacaoPagamento | "";
 };
 
 export function VendasPage() {
-  // Atualiza valor_unitario ao selecionar produto
-  function handleProdutoChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const produtoId = Number(e.target.value);
-    const produto = produtos.find((p) => p.id === produtoId);
-    setNovoItem((i) => ({
-      ...i,
-      produto_id: produtoId || undefined,
-      valor_unitario: produto ? produto.preco_venda : undefined,
-      tipo_medida: produto ? produto.tipo_medida : undefined,
-    }));
-  }
-  // Remove item do array de itens da venda em edição
-  function removerItem(idx: number) {
-    setFormVenda((f) => ({
-      ...f,
-      itens: f.itens.filter((_, i) => i !== idx),
-    }));
-  }
-
-  // Salva a venda (envia para o backend)
-  async function salvarVenda(e: React.FormEvent) {
-    e.preventDefault();
-    setSalvando(true);
-    setErroForm(null);
-    try {
-      if (!formVenda.cliente_id || formVenda.itens.length === 0) {
-        setErroForm("Selecione o cliente e adicione pelo menos um item.");
-        setSalvando(false);
-        return;
-      }
-      await vendasService.criar({
-        ...formVenda,
-        cliente_id: Number(formVenda.cliente_id),
-        situacao_pagamento: "Pendente",
-      });
-      setAbrirModal(false);
-      setFormVenda({
-        cliente_id: "",
-        observacoes: "",
-        itens: [],
-      });
-      setPagina(1);
-      buscarVendas();
-    } catch (err: any) {
-      setErroForm(err?.message || "Erro ao salvar venda");
-    } finally {
-      setSalvando(false);
-    }
-  }
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -136,6 +266,17 @@ export function VendasPage() {
     buscarVendas();
   }
 
+  function handleProdutoChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const produtoId = Number(e.target.value);
+    const produto = produtos.find((p) => p.id === produtoId);
+    setNovoItem((i) => ({
+      ...i,
+      produto_id: produtoId || undefined,
+      valor_unitario: produto ? produto.preco_venda : undefined,
+      tipo_medida: produto ? produto.tipo_medida : undefined,
+    }));
+  }
+
   function adicionarItem() {
     if (
       !novoItem.produto_id ||
@@ -147,7 +288,6 @@ export function VendasPage() {
       setErroForm("Preencha todos os campos do item.");
       return;
     }
-    // Impede adicionar o mesmo produto duas vezes
     if (
       formVenda.itens.some((item) => item.produto_id === novoItem.produto_id)
     ) {
@@ -174,6 +314,43 @@ export function VendasPage() {
     }));
     setNovoItem({});
     setErroForm(null);
+  }
+
+  function removerItem(idx: number) {
+    setFormVenda((f) => ({
+      ...f,
+      itens: f.itens.filter((_, i) => i !== idx),
+    }));
+  }
+
+  async function salvarVenda(e: React.FormEvent) {
+    e.preventDefault();
+    setSalvando(true);
+    setErroForm(null);
+    try {
+      if (!formVenda.cliente_id || formVenda.itens.length === 0) {
+        setErroForm("Selecione o cliente e adicione pelo menos um item.");
+        setSalvando(false);
+        return;
+      }
+      await vendasService.criar({
+        ...formVenda,
+        cliente_id: Number(formVenda.cliente_id),
+        situacao_pagamento: "Pendente",
+      });
+      setAbrirModal(false);
+      setFormVenda({
+        cliente_id: "",
+        observacoes: "",
+        itens: [],
+      });
+      setPagina(1);
+      buscarVendas();
+    } catch (err: any) {
+      setErroForm(err?.message || "Erro ao salvar venda");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
@@ -292,20 +469,38 @@ export function VendasPage() {
                     </span>
                   </div>
                 </div>
-                {venda.situacao_pagamento === "Pendente" && (
-                  <Button
+                <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                  {venda.situacao_pagamento === "Pendente" && (
+                    <button
+                      type="button"
+                      className="w-full sm:w-auto px-4 py-2 rounded-md border-2 border-blue-500 bg-blue-50 text-blue-800 font-semibold hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await vendasService.marcarComoPago(venda.id);
+                        buscarVendas();
+                      }}
+                    >
+                      Marcar como Pago
+                    </button>
+                  )}
+                  <button
                     type="button"
-                    className="mt-4 w-full"
-                    variant="outline"
+                    className="w-full sm:w-auto px-4 py-2 rounded-md border-2 border-red-500 bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
                     onClick={async (e) => {
                       e.stopPropagation();
-                      await vendasService.marcarComoPago(venda.id);
-                      buscarVendas();
+                      if (
+                        window.confirm(
+                          "Tem certeza que deseja excluir esta venda?"
+                        )
+                      ) {
+                        await vendasService.excluir(venda.id);
+                        buscarVendas();
+                      }
                     }}
                   >
-                    Marcar como Pago
-                  </Button>
-                )}
+                    Excluir
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -341,8 +536,20 @@ export function VendasPage() {
         onOpenChange={() => setVendaSelecionada(null)}
       >
         <DialogContent className="max-w-3xl">
-          <DialogTitle className="text-2xl font-bold text-gray-800">
-            Detalhes da Venda #{vendaSelecionada?.id}
+          <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center justify-between">
+            <span>Detalhes da Venda #{vendaSelecionada?.id}</span>
+            {vendaSelecionada && (
+              <>
+                <button
+                  type="button"
+                  className="ml-4 px-3 py-1 rounded-md border-2 border-purple-500 bg-purple-50 text-purple-800 font-semibold hover:bg-purple-100 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-300 text-sm"
+                  onClick={() => compartilharHTMLComoPDF(vendaSelecionada)}
+                  title="Compartilhar PDF estilizado"
+                >
+                  Compartilhar
+                </button>
+              </>
+            )}
           </DialogTitle>
           {vendaSelecionada && (
             <div className="mt-4 space-y-5">
@@ -536,7 +743,6 @@ export function VendasPage() {
                   value={novoItem.tipo_medida || ""}
                   disabled
                 />
-                {/* Mostra o preço de venda do produto selecionado */}
                 <input
                   type="text"
                   placeholder="Preço Venda"
@@ -598,6 +804,8 @@ export function VendasPage() {
                       const prod = produtos.find(
                         (p) => p.id === item.produto_id
                       );
+                      const totalItem =
+                        (item.quantidade ?? 0) * (item.valor_unitario ?? 0);
                       return (
                         <tr key={idx} className="border-t">
                           <td className="p-2">
@@ -607,14 +815,10 @@ export function VendasPage() {
                             {item.quantidade} {item.tipo_medida}
                           </td>
                           <td className="p-2 text-center">
-                            R$ {item.valor_unitario.toFixed(2)}
+                            R$ {Number(item.valor_unitario).toFixed(2)}
                           </td>
                           <td className="p-2 text-right font-medium">
-                            R${" "}
-                            {(
-                              Number(item.quantidade) *
-                              Number(item.valor_unitario)
-                            ).toFixed(2)}
+                            R$ {totalItem.toFixed(2)}
                           </td>
                           <td className="p-2 text-center">
                             <Button
