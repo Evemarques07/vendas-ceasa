@@ -58,6 +58,7 @@ export function ProdutosPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  // Removido debounce, agora busca só ao clicar no botão
   const [notification, setNotification] = useState<{
     message: string;
     type: "success" | "error";
@@ -106,6 +107,8 @@ export function ProdutosPage() {
           setLoading(true);
           setSkip(0);
         } else {
+          // Evita carregar mais se já está carregando ou resetando
+          if (loading || loadingMore) return;
           setLoadingMore(true);
         }
         const resultado = await produtosService.listar({
@@ -115,12 +118,13 @@ export function ProdutosPage() {
         });
         if (reset) {
           setProdutos(resultado.produtos || []);
+          setTotal(resultado.total || 0);
+          setSkip(limit);
         } else {
           setProdutos((prev) => [...prev, ...(resultado.produtos || [])]);
+          setTotal(resultado.total || 0);
+          setSkip((prev) => prev + limit);
         }
-        setTotal(resultado.total || 0);
-        if (reset) setSkip(limit);
-        else setSkip((prev) => prev + limit);
       } catch (error) {
         console.error("Erro ao carregar produtos:", error);
         showNotification("Falha ao carregar produtos.", "error");
@@ -131,19 +135,22 @@ export function ProdutosPage() {
         setReloading(false);
       }
     },
-    [limit, skip, searchTerm]
+    [limit, skip, searchTerm, loading, loadingMore]
   );
 
-  // Inicial e ao buscar
+  // Buscar produtos ao clicar no botão ou pressionar Enter
+  const [pendingSearch, setPendingSearch] = useState("");
   useEffect(() => {
-    carregarProdutos(true);
+    carregarProdutos(true, searchTerm);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+  }, [pendingSearch]);
 
   // Scroll infinito: observer
   useEffect(() => {
     if (loading || loadingMore) return;
     if (produtos.length >= total) return;
+    // Não observar se está resetando (skip === 0)
+    if (skip === 0) return;
     const observer = new window.IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -158,7 +165,7 @@ export function ProdutosPage() {
     return () => {
       if (observerRef.current) observer.unobserve(observerRef.current);
     };
-  }, [carregarProdutos, produtos.length, total, loading, loadingMore]);
+  }, [carregarProdutos, produtos.length, total, loading, loadingMore, skip]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,6 +305,23 @@ export function ProdutosPage() {
 
   // Não filtra no front, pois a busca já é feita no back
   const produtosFiltrados = produtos;
+
+  // Botão flutuante para voltar ao topo
+  const [showScroll, setShowScroll] = useState(false);
+  useEffect(() => {
+    const checkScrollTop = () => {
+      if (!showScroll && window.pageYOffset > 400) {
+        setShowScroll(true);
+      } else if (showScroll && window.pageYOffset <= 400) {
+        setShowScroll(false);
+      }
+    };
+    window.addEventListener("scroll", checkScrollTop);
+    return () => window.removeEventListener("scroll", checkScrollTop);
+  }, [showScroll]);
+  const scrollTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   if (loading && !reloading) return <Loading />;
 
@@ -499,13 +523,38 @@ export function ProdutosPage() {
           </div>
         </header>
 
-        <div className="mb-8">
+        <div className="mb-8 flex gap-2 w-full sm:max-w-md">
           <Input
-            placeholder="Buscar por nome ou descrição..."
+            placeholder="Buscar por nome do produto..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:max-w-md"
+            className="flex-1"
+            autoComplete="off"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                setPendingSearch((prev) => prev + " "); // força update
+              }
+            }}
           />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setPendingSearch((prev) => prev + " ")}
+            className="shrink-0"
+          >
+            Filtrar
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setSearchTerm("");
+              setPendingSearch((prev) => prev + " ");
+            }}
+            className="shrink-0"
+          >
+            Limpar Filtros
+          </Button>
         </div>
 
         {produtosFiltrados.length > 0 ? (
@@ -629,6 +678,29 @@ export function ProdutosPage() {
           </div>
         )}
       </div>
+      {/* Botão Flutuante para Voltar ao Topo */}
+      {showScroll && (
+        <button
+          onClick={scrollTop}
+          className="fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out z-50 animate-bounce"
+          aria-label="Voltar ao topo"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 15l7-7 7 7"
+            />
+          </svg>
+        </button>
+      )}
     </>
   );
 }
