@@ -53,6 +53,7 @@ type FormProduto = Omit<FormProdutoApi, "imagem">;
 export function ProdutosPage() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingProduto, setEditingProduto] = useState<Produto | null>(null);
@@ -81,6 +82,12 @@ export function ProdutosPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Scroll infinito
+  const [skip, setSkip] = useState(0);
+  const [limit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const observerRef = useRef<HTMLDivElement | null>(null);
+
   // Novo estado para controlar imagens com erro
   const [imagensComErro, setImagensComErro] = useState<{
     [id: number]: boolean;
@@ -91,24 +98,67 @@ export function ProdutosPage() {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  const carregarProdutos = useCallback(async () => {
-    try {
-      setLoading(true);
-      const resultado = await produtosService.listar();
-      setProdutos(resultado.produtos || []);
-    } catch (error) {
-      console.error("Erro ao carregar produtos:", error);
-      showNotification("Falha ao carregar produtos.", "error");
-      setProdutos([]);
-    } finally {
-      setLoading(false);
-      setReloading(false);
-    }
-  }, []);
+  // Carregar produtos (paginado)
+  const carregarProdutos = useCallback(
+    async (reset = false, termoBusca = searchTerm) => {
+      try {
+        if (reset) {
+          setLoading(true);
+          setSkip(0);
+        } else {
+          setLoadingMore(true);
+        }
+        const resultado = await produtosService.listar({
+          skip: reset ? 0 : skip,
+          limit,
+          nome: termoBusca || undefined,
+        });
+        if (reset) {
+          setProdutos(resultado.produtos || []);
+        } else {
+          setProdutos((prev) => [...prev, ...(resultado.produtos || [])]);
+        }
+        setTotal(resultado.total || 0);
+        if (reset) setSkip(limit);
+        else setSkip((prev) => prev + limit);
+      } catch (error) {
+        console.error("Erro ao carregar produtos:", error);
+        showNotification("Falha ao carregar produtos.", "error");
+        if (reset) setProdutos([]);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        setReloading(false);
+      }
+    },
+    [limit, skip, searchTerm]
+  );
 
+  // Inicial e ao buscar
   useEffect(() => {
-    carregarProdutos();
-  }, [carregarProdutos]);
+    carregarProdutos(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
+  // Scroll infinito: observer
+  useEffect(() => {
+    if (loading || loadingMore) return;
+    if (produtos.length >= total) return;
+    const observer = new window.IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          carregarProdutos();
+        }
+      },
+      { threshold: 1 }
+    );
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+    return () => {
+      if (observerRef.current) observer.unobserve(observerRef.current);
+    };
+  }, [carregarProdutos, produtos.length, total, loading, loadingMore]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,7 +284,8 @@ export function ProdutosPage() {
 
   const handleRecarregar = () => {
     setReloading(true);
-    carregarProdutos();
+    setSkip(0);
+    carregarProdutos(true);
   };
 
   const formatCurrency = (value: number | string) => {
@@ -245,14 +296,10 @@ export function ProdutosPage() {
     }).format(numberValue);
   };
 
-  const produtosFiltrados =
-    produtos?.filter(
-      (p) =>
-        p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.descricao || "").toLowerCase().includes(searchTerm.toLowerCase())
-    ) || [];
+  // Não filtra no front, pois a busca já é feita no back
+  const produtosFiltrados = produtos;
 
-  if (loading) return <Loading />;
+  if (loading && !reloading) return <Loading />;
 
   return (
     <>
@@ -462,84 +509,102 @@ export function ProdutosPage() {
         </div>
 
         {produtosFiltrados.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {produtosFiltrados.map((p) => {
-              const imageUrl = `${API_BASE_URL}/produtos/imagem/${
-                p.id
-              }?t=${new Date().getTime()}`;
-              return (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col group transition-all hover:shadow-xl hover:-translate-y-1"
-                >
-                  <div className="relative">
-                    <div className="aspect-w-1 aspect-h-1 w-full h-48 bg-gray-100 flex items-center justify-center">
-                      {!imagensComErro[p.id] ? (
-                        <img
-                          src={imageUrl}
-                          alt={p.nome}
-                          className="w-full h-full object-cover"
-                          onError={() =>
-                            setImagensComErro((prev) => ({
-                              ...prev,
-                              [p.id]: true,
-                            }))
-                          }
-                        />
-                      ) : (
-                        <FiImage className="w-16 h-16 text-gray-300" />
-                      )}
-                    </div>
-                    <span
-                      className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full text-white ${
-                        p.ativo ? "bg-green-500" : "bg-gray-500"
-                      }`}
-                    >
-                      {p.ativo ? "Ativo" : "Inativo"}
-                    </span>
-                  </div>
-                  <div className="p-4 flex flex-col flex-grow">
-                    <h3 className="font-bold text-lg text-gray-800 mb-1 truncate">
-                      {p.nome}
-                    </h3>
-                    <p className="text-sm text-gray-500 mb-3 flex-grow h-10">
-                      {p.descricao}
-                    </p>
-                    <div className="text-xl font-semibold text-gray-900 mb-3">
-                      {formatCurrency(p.preco_venda)}{" "}
-                      <span className="text-sm font-normal text-gray-500">
-                        / {p.tipo_medida}
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {produtosFiltrados.map((p) => {
+                const imageUrl = `${API_BASE_URL}/produtos/imagem/${
+                  p.id
+                }?t=${new Date().getTime()}`;
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col group transition-all hover:shadow-xl hover:-translate-y-1"
+                  >
+                    <div className="relative">
+                      <div className="aspect-w-1 aspect-h-1 w-full h-48 bg-gray-100 flex items-center justify-center">
+                        {!imagensComErro[p.id] ? (
+                          <img
+                            src={imageUrl}
+                            alt={p.nome}
+                            className="w-full h-full object-cover"
+                            onError={() =>
+                              setImagensComErro((prev) => ({
+                                ...prev,
+                                [p.id]: true,
+                              }))
+                            }
+                          />
+                        ) : (
+                          <FiImage className="w-16 h-16 text-gray-300" />
+                        )}
+                      </div>
+                      <span
+                        className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full text-white ${
+                          p.ativo ? "bg-green-500" : "bg-gray-500"
+                        }`}
+                      >
+                        {p.ativo ? "Ativo" : "Inativo"}
                       </span>
                     </div>
-                    {p.estoque_minimo && (
-                      <div className="flex items-center gap-2 text-yellow-600 text-xs mb-3 p-2 bg-yellow-50 rounded-md">
-                        <FiAlertCircle />
-                        <span>Estoque mínimo: {p.estoque_minimo}</span>
+                    <div className="p-4 flex flex-col flex-grow">
+                      <h3 className="font-bold text-lg text-gray-800 mb-1 truncate">
+                        {p.nome}
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-3 flex-grow h-10">
+                        {p.descricao}
+                      </p>
+                      <div className="text-xl font-semibold text-gray-900 mb-3">
+                        {formatCurrency(p.preco_venda)}{" "}
+                        <span className="text-sm font-normal text-gray-500">
+                          / {p.tipo_medida}
+                        </span>
                       </div>
-                    )}
+                      {p.estoque_minimo && (
+                        <div className="flex items-center gap-2 text-yellow-600 text-xs mb-3 p-2 bg-yellow-50 rounded-md">
+                          <FiAlertCircle />
+                          <span>Estoque mínimo: {p.estoque_minimo}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 bg-gray-50/70 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(p)}
+                        className="flex-1"
+                      >
+                        <FiEdit className="mr-2 h-4 w-4" /> Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(p.id)}
+                        className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <FiTrash2 />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="p-4 bg-gray-50/70 flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(p)}
-                      className="flex-1"
-                    >
-                      <FiEdit className="mr-2 h-4 w-4" /> Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(p.id)}
-                      className="text-gray-400 hover:text-red-600 hover:bg-red-50"
-                    >
-                      <FiTrash2 />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+            {/* Loader do scroll infinito */}
+            <div ref={observerRef} style={{ height: 1 }} />
+            {loadingMore && (
+              <div className="flex justify-center py-4">
+                <span className="text-gray-500 text-sm">
+                  Carregando mais produtos...
+                </span>
+              </div>
+            )}
+            {produtos.length >= total && total > 0 && (
+              <div className="flex justify-center py-4">
+                <span className="text-gray-400 text-xs">
+                  Todos os produtos carregados.
+                </span>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-16 px-6 bg-gray-50 rounded-lg">
             <FiPackage className="mx-auto h-12 w-12 text-gray-400" />

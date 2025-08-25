@@ -1,8 +1,3 @@
-// Função para gerar PDF a partir do HTML estilizado e compartilhar
-import html2canvas from "html2canvas";
-
-// Função para gerar HTML estilizado da venda e abrir em nova aba
-
 import React, { useEffect, useState } from "react";
 import {
   vendasService,
@@ -21,6 +16,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import html2canvas from "html2canvas"; // Importando a biblioteca que estava sendo usada
 
 // Estendendo a interface do jsPDF para incluir o autoTable e evitar erros de TypeScript
 // (declarado em src/types/jspdf-autotable.d.ts)
@@ -223,6 +219,7 @@ export function VendasPage() {
   const [salvando, setSalvando] = useState(false);
   const [erroForm, setErroForm] = useState<string | null>(null);
   const [vendaSelecionada, setVendaSelecionada] = useState<Venda | null>(null);
+  const [showScroll, setShowScroll] = useState(false);
 
   useEffect(() => {
     clientesService
@@ -237,6 +234,19 @@ export function VendasPage() {
     buscarVendas();
     // eslint-disable-next-line
   }, [pagina]);
+
+  // Efeito para controlar a exibição do botão "Voltar ao topo"
+  useEffect(() => {
+    const checkScrollTop = () => {
+      if (!showScroll && window.pageYOffset > 400) {
+        setShowScroll(true);
+      } else if (showScroll && window.pageYOffset <= 400) {
+        setShowScroll(false);
+      }
+    };
+    window.addEventListener("scroll", checkScrollTop);
+    return () => window.removeEventListener("scroll", checkScrollTop);
+  }, [showScroll]);
 
   function buscarVendas() {
     setCarregando(true);
@@ -353,31 +363,45 @@ export function VendasPage() {
     }
   }
 
+  const scrollTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Vendas</h1>
-          <Button className="mt-2 sm:mt-0" onClick={() => setAbrirModal(true)}>
+    <div className="bg-slate-100 min-h-screen p-4 sm:p-6 lg:p-8">
+      <div className="max-w-screen-xl mx-auto">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 pb-4 border-b border-slate-300">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-800 tracking-tight">
+              Painel de Vendas
+            </h1>
+            <p className="text-slate-500 mt-1">
+              Gerencie e acompanhe suas vendas
+            </p>
+          </div>
+          <Button
+            className="mt-4 sm:mt-0 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-lg py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+            onClick={() => setAbrirModal(true)}
+          >
             + Nova Venda
           </Button>
         </header>
 
         {/* Filtros */}
-        <div className="bg-white p-4 rounded-lg shadow-sm mb-6">
+        <div className="bg-white p-6 rounded-xl shadow-md mb-8">
           <form
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 items-end"
             onSubmit={aplicarFiltros}
           >
             <div className="w-full">
-              <label className="text-sm font-medium text-gray-600">
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">
                 Cliente
               </label>
               <select
                 name="cliente_id"
                 value={filtros.cliente_id}
                 onChange={handleFiltroChange}
-                className="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                className="w-full mt-1 border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition"
               >
                 <option value="">Todos os clientes</option>
                 {clientes.map((c) => (
@@ -388,14 +412,14 @@ export function VendasPage() {
               </select>
             </div>
             <div className="w-full">
-              <label className="text-sm font-medium text-gray-600">
+              <label className="text-sm font-semibold text-slate-600 mb-1 block">
                 Situação
               </label>
               <select
                 name="situacao_pagamento"
                 value={filtros.situacao_pagamento}
                 onChange={handleFiltroChange}
-                className="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                className="w-full mt-1 border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition"
               >
                 <option value="">Todas as situações</option>
                 {situacoesPagamento.map((s) => (
@@ -405,8 +429,11 @@ export function VendasPage() {
                 ))}
               </select>
             </div>
-            <div className="md:col-start-4 flex justify-end">
-              <Button type="submit" className="w-full sm:w-auto">
+            <div className="lg:col-start-4 flex justify-end">
+              <Button
+                type="submit"
+                className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-semibold py-2 px-6 rounded-lg transition-all"
+              >
                 Filtrar
               </Button>
             </div>
@@ -415,65 +442,67 @@ export function VendasPage() {
 
         {/* Grade de Vendas */}
         {carregando ? (
-          <div className="text-center py-10 text-gray-500">
+          <div className="text-center py-20 text-slate-500 text-lg">
             Carregando vendas...
           </div>
         ) : vendas.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-lg shadow-sm">
-            <h3 className="text-lg font-medium text-gray-800">
+          <div className="text-center py-20 bg-white rounded-xl shadow-md">
+            <h3 className="text-2xl font-semibold text-slate-800">
               Nenhuma venda encontrada
             </h3>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-slate-500 mt-2">
               Tente ajustar os filtros ou crie uma nova venda.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {vendas.map((venda) => (
               <div
                 key={venda.id}
-                className="bg-white rounded-lg shadow-md p-5 border-l-4 border-transparent hover:border-blue-500 cursor-pointer transition-all duration-300 flex flex-col justify-between"
+                className="bg-white rounded-xl shadow-lg p-5 border-t-4 border-indigo-500 hover:shadow-2xl hover:-translate-y-1 cursor-pointer transition-all duration-300 flex flex-col justify-between"
                 onClick={() => setVendaSelecionada(venda)}
               >
                 <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="font-bold text-lg text-gray-800">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="font-bold text-xl text-slate-800">
                       Venda #{venda.id}
                     </span>
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      className={`px-3 py-1 rounded-full text-xs font-bold ${
                         venda.situacao_pagamento === "Pago"
                           ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
+                          : "bg-amber-100 text-amber-800"
                       }`}
                     >
                       {venda.situacao_pagamento}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium text-gray-800">Cliente:</span>{" "}
+                  <div className="text-sm text-slate-600 mb-4">
+                    <span className="font-semibold text-slate-800">
+                      Cliente:
+                    </span>{" "}
                     {venda.cliente?.nome ||
                       venda.cliente_nome ||
                       "Não informado"}
                   </div>
-                  <div className="text-xs text-gray-400 mb-4">
+                  <div className="text-xs text-slate-400 mb-4">
                     {new Date(venda.data_venda).toLocaleString("pt-BR", {
                       dateStyle: "short",
                       timeStyle: "short",
                     })}
                   </div>
-                  <div className="flex justify-between items-baseline border-t pt-3">
-                    <span className="font-semibold text-gray-600">Total:</span>
-                    <span className="text-blue-600 text-xl font-bold">
+                  <div className="flex justify-between items-baseline border-t border-slate-200 pt-3">
+                    <span className="font-semibold text-slate-600">Total:</span>
+                    <span className="text-indigo-600 text-2xl font-bold">
                       R$ {Number(venda.total_venda).toFixed(2)}
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                <div className="flex flex-col sm:flex-row gap-2 mt-4 pt-4 border-t border-slate-200">
                   {venda.situacao_pagamento === "Pendente" && (
                     <button
                       type="button"
-                      className="w-full sm:w-auto px-4 py-2 rounded-md border-2 border-blue-500 bg-blue-50 text-blue-800 font-semibold hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-green-500 bg-green-50 text-green-800 font-semibold hover:bg-green-100 transition-colors focus:outline-none focus:ring-2 focus:ring-green-300"
                       onClick={async (e) => {
                         e.stopPropagation();
                         await vendasService.marcarComoPago(venda.id);
@@ -485,7 +514,7 @@ export function VendasPage() {
                   )}
                   <button
                     type="button"
-                    className="w-full sm:w-auto px-4 py-2 rounded-md border-2 border-red-500 bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
+                    className="w-full px-4 py-2 rounded-lg border-2 border-red-500 bg-red-50 text-red-700 font-semibold hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"
                     onClick={async (e) => {
                       e.stopPropagation();
                       if (
@@ -507,8 +536,8 @@ export function VendasPage() {
         )}
 
         {/* Paginação */}
-        <div className="flex justify-between items-center mt-6 bg-white px-4 py-3 rounded-lg shadow-sm">
-          <span className="text-sm text-gray-600">
+        <div className="flex flex-col sm:flex-row justify-between items-center mt-8 bg-white px-6 py-4 rounded-xl shadow-md">
+          <span className="text-sm text-slate-600 mb-2 sm:mb-0">
             Página {pagina} de {totalPaginas}
           </span>
           <div className="flex gap-2">
@@ -530,66 +559,88 @@ export function VendasPage() {
         </div>
       </div>
 
+      {/* Botão Flutuante para Voltar ao Topo */}
+      {showScroll && (
+        <button
+          onClick={scrollTop}
+          className="fixed bottom-8 right-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out z-50 animate-bounce"
+          aria-label="Voltar ao topo"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 15l7-7 7 7"
+            />
+          </svg>
+        </button>
+      )}
+
       {/* Modal de Detalhes da Venda */}
       <Dialog
         open={!!vendaSelecionada}
         onOpenChange={() => setVendaSelecionada(null)}
       >
-        <DialogContent className="max-w-3xl">
-          <DialogTitle className="text-2xl font-bold text-gray-800 flex items-center justify-between">
+        <DialogContent className="max-w-4xl p-0">
+          <DialogTitle className="text-2xl font-bold text-slate-800 flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-200">
             <span>Detalhes da Venda #{vendaSelecionada?.id}</span>
             {vendaSelecionada && (
-              <>
-                <button
-                  type="button"
-                  className="ml-4 px-3 py-1 rounded-md border-2 border-purple-500 bg-purple-50 text-purple-800 font-semibold hover:bg-purple-100 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-300 text-sm"
-                  onClick={() => compartilharHTMLComoPDF(vendaSelecionada)}
-                  title="Compartilhar PDF estilizado"
-                >
-                  Compartilhar
-                </button>
-              </>
+              <button
+                type="button"
+                className="ml-4 px-4 py-2 rounded-lg border-2 border-purple-500 bg-purple-50 text-purple-800 font-semibold hover:bg-purple-100 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-300 text-sm"
+                onClick={() => compartilharHTMLComoPDF(vendaSelecionada)}
+                title="Compartilhar PDF estilizado"
+              >
+                Compartilhar
+              </button>
             )}
           </DialogTitle>
           {vendaSelecionada && (
-            <div className="mt-4 space-y-5">
+            <div className="max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <span className="font-semibold text-gray-600 block">
+                <div className="bg-slate-100 p-4 rounded-lg">
+                  <span className="font-semibold text-slate-600 block mb-1">
                     Cliente
-                  </span>{" "}
-                  <span className="text-gray-800">
+                  </span>
+                  <span className="text-slate-900 font-medium">
                     {vendaSelecionada.cliente?.nome ||
                       vendaSelecionada.cliente_nome ||
                       "-"}
                   </span>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <span className="font-semibold text-gray-600 block">
+                <div className="bg-slate-100 p-4 rounded-lg">
+                  <span className="font-semibold text-slate-600 block mb-1">
                     Data
-                  </span>{" "}
-                  <span className="text-gray-800">
+                  </span>
+                  <span className="text-slate-900 font-medium">
                     {new Date(vendaSelecionada.data_venda).toLocaleString(
                       "pt-BR"
                     )}
                   </span>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <span className="font-semibold text-gray-600 block">
+                <div className="bg-slate-100 p-4 rounded-lg">
+                  <span className="font-semibold text-slate-600 block mb-1">
                     Pagamento
-                  </span>{" "}
-                  <span className="text-gray-800">
+                  </span>
+                  <span className="text-slate-900 font-medium">
                     {vendaSelecionada.situacao_pagamento}
                   </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-blue-50 p-4 rounded-lg text-center">
-                  <span className="font-semibold text-blue-800 block text-md">
+                <div className="bg-indigo-50 p-4 rounded-lg text-center">
+                  <span className="font-semibold text-indigo-800 block text-md">
                     Total do Pedido
                   </span>
-                  <span className="text-blue-900 text-2xl font-bold">
+                  <span className="text-indigo-900 text-3xl font-bold">
                     R$ {Number(vendaSelecionada.total_venda).toFixed(2)}
                   </span>
                 </div>
@@ -599,7 +650,7 @@ export function VendasPage() {
                       <span className="font-semibold text-green-800 block text-md">
                         Lucro Bruto Total
                       </span>
-                      <span className="text-green-900 text-2xl font-bold">
+                      <span className="text-green-900 text-3xl font-bold">
                         R${" "}
                         {Number(vendaSelecionada.lucro_bruto_total).toFixed(2)}
                       </span>
@@ -608,58 +659,58 @@ export function VendasPage() {
               </div>
 
               <div>
-                <h3 className="font-semibold text-lg text-gray-700 mb-2">
+                <h3 className="font-semibold text-xl text-slate-700 mb-3">
                   Itens do Pedido
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
                   <table className="min-w-full text-sm">
-                    <thead className="bg-gray-100">
+                    <thead className="bg-slate-100">
                       <tr>
-                        <th className="text-left p-2 font-medium text-gray-600">
+                        <th className="text-left p-3 font-semibold text-slate-600">
                           Produto
                         </th>
-                        <th className="text-center p-2 font-medium text-gray-600">
+                        <th className="text-center p-3 font-semibold text-slate-600">
                           Qtd
                         </th>
-                        <th className="text-center p-2 font-medium text-gray-600">
+                        <th className="text-center p-3 font-semibold text-slate-600">
                           Vl. Unit.
                         </th>
-                        <th className="text-center p-2 font-medium text-gray-600">
+                        <th className="text-center p-3 font-semibold text-slate-600">
                           Custo
                         </th>
-                        <th className="text-center p-2 font-medium text-gray-600">
+                        <th className="text-center p-3 font-semibold text-slate-600">
                           Lucro
                         </th>
-                        <th className="text-right p-2 font-medium text-gray-600">
+                        <th className="text-right p-3 font-semibold text-slate-600">
                           Total Item
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-slate-200 bg-white">
                       {vendaSelecionada.itens.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="p-2">
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="p-3">
                             {item.produto?.nome ||
                               item.produto_nome ||
                               `ID ${item.produto_id}`}
                           </td>
-                          <td className="p-2 text-center">{item.quantidade}</td>
-                          <td className="p-2 text-center">
+                          <td className="p-3 text-center">{item.quantidade}</td>
+                          <td className="p-3 text-center">
                             R$ {Number(item.valor_unitario ?? 0).toFixed(2)}
                           </td>
-                          <td className="p-2 text-center">
+                          <td className="p-3 text-center">
                             R${" "}
                             {item.custo !== undefined
                               ? Number(item.custo).toFixed(2)
                               : "-"}
                           </td>
-                          <td className="p-2 text-center text-green-600">
+                          <td className="p-3 text-center text-green-600 font-medium">
                             R${" "}
                             {item.lucro_bruto !== undefined
                               ? Number(item.lucro_bruto).toFixed(2)
                               : "-"}
                           </td>
-                          <td className="p-2 text-right font-medium">
+                          <td className="p-3 text-right font-medium">
                             R${" "}
                             {item.valor_total_produto !== undefined
                               ? Number(item.valor_total_produto).toFixed(2)
@@ -678,198 +729,204 @@ export function VendasPage() {
 
       {/* Modal de Nova Venda */}
       <Dialog open={abrirModal} onOpenChange={setAbrirModal}>
-        <DialogContent className="max-w-4xl">
-          <DialogTitle className="text-2xl font-bold text-gray-800">
+        <DialogContent className="max-w-5xl p-0">
+          <DialogTitle className="text-2xl font-bold text-slate-800 px-6 pt-6 pb-4 border-b border-slate-200">
             Criar Nova Venda
           </DialogTitle>
-          <form onSubmit={salvarVenda} className="mt-4 space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Cliente
-              </label>
-              <select
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                value={formVenda.cliente_id}
-                onChange={(e) =>
-                  setFormVenda((f) => ({ ...f, cliente_id: e.target.value }))
-                }
-                required
-              >
-                <option value="">Selecione um cliente</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="border rounded-lg p-4 space-y-4">
-              <h3 className="font-medium text-gray-800">Itens da Venda</h3>
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+          <div className="max-h-[80vh] overflow-y-auto px-6 pb-6 pt-4">
+            <form onSubmit={salvarVenda} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Cliente
+                </label>
                 <select
-                  className="md:col-span-2 border-gray-300 rounded-md shadow-sm"
-                  value={novoItem.produto_id || ""}
-                  onChange={handleProdutoChange}
+                  className="mt-1 block w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition"
+                  value={formVenda.cliente_id}
+                  onChange={(e) =>
+                    setFormVenda((f) => ({ ...f, cliente_id: e.target.value }))
+                  }
+                  required
                 >
-                  <option value="">Selecione um produto</option>
-                  {produtos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nome}
+                  <option value="">Selecione um cliente</option>
+                  {clientes.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
                     </option>
                   ))}
                 </select>
-                <input
-                  type="number"
-                  min={0.01}
-                  step={0.01}
-                  placeholder="Qtd"
-                  className="border-gray-300 rounded-md shadow-sm w-full"
-                  value={novoItem.quantidade ?? ""}
+              </div>
+
+              <div className="border border-slate-200 rounded-lg p-4 space-y-4 bg-slate-50">
+                <h3 className="font-medium text-slate-800">Itens da Venda</h3>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                  <select
+                    className="md:col-span-3 border-slate-300 rounded-lg shadow-sm"
+                    value={novoItem.produto_id || ""}
+                    onChange={handleProdutoChange}
+                  >
+                    <option value="">Selecione um produto</option>
+                    {produtos.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nome}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    placeholder="Qtd"
+                    className="md:col-span-1 border-slate-300 rounded-lg shadow-sm w-full"
+                    value={novoItem.quantidade ?? ""}
+                    onChange={(e) =>
+                      setNovoItem((i) => ({
+                        ...i,
+                        quantidade:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      }))
+                    }
+                  />
+                  <input
+                    type="text"
+                    placeholder="Medida"
+                    className="md:col-span-1 border-slate-300 rounded-lg shadow-sm bg-slate-200 w-full cursor-not-allowed"
+                    value={novoItem.tipo_medida || ""}
+                    disabled
+                  />
+                  <input
+                    type="text"
+                    placeholder="Preço Venda"
+                    className="md:col-span-2 border-slate-300 rounded-lg shadow-sm bg-slate-200 w-full cursor-not-allowed"
+                    value={
+                      novoItem.valor_unitario !== undefined &&
+                      novoItem.valor_unitario !== null
+                        ? `R$ ${Number(novoItem.valor_unitario).toFixed(2)}`
+                        : ""
+                    }
+                    disabled
+                  />
+                  <input
+                    type="number"
+                    min={0.01}
+                    step={0.01}
+                    placeholder="Custo"
+                    className="md:col-span-2 border-slate-300 rounded-lg shadow-sm w-full"
+                    value={novoItem.custo ?? ""}
+                    onChange={(e) =>
+                      setNovoItem((i) => ({
+                        ...i,
+                        custo:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      }))
+                    }
+                  />
+                  <Button
+                    type="button"
+                    onClick={adicionarItem}
+                    className="md:col-span-3 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                  >
+                    Adicionar Item
+                  </Button>
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-100">
+                      <tr>
+                        <th className="p-2 text-left font-medium text-slate-600">
+                          Produto
+                        </th>
+                        <th className="p-2 text-center font-medium text-slate-600">
+                          Qtd
+                        </th>
+                        <th className="p-2 text-center font-medium text-slate-600">
+                          Vl. Unit.
+                        </th>
+                        <th className="p-2 text-right font-medium text-slate-600">
+                          Total
+                        </th>
+                        <th className="p-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {formVenda.itens.map((item, idx) => {
+                        const prod = produtos.find(
+                          (p) => p.id === item.produto_id
+                        );
+                        const totalItem =
+                          (item.quantidade ?? 0) * (item.valor_unitario ?? 0);
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="p-2">
+                              {prod?.nome || item.produto_id}
+                            </td>
+                            <td className="p-2 text-center">
+                              {item.quantidade} {item.tipo_medida}
+                            </td>
+                            <td className="p-2 text-center">
+                              R$ {Number(item.valor_unitario).toFixed(2)}
+                            </td>
+                            <td className="p-2 text-right font-medium">
+                              R$ {totalItem.toFixed(2)}
+                            </td>
+                            <td className="p-2 text-center">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="danger"
+                                onClick={() => removerItem(idx)}
+                              >
+                                X
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700">
+                  Observações
+                </label>
+                <textarea
+                  className="mt-1 block w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition"
+                  value={formVenda.observacoes}
                   onChange={(e) =>
-                    setNovoItem((i) => ({
-                      ...i,
-                      quantidade:
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
-                    }))
+                    setFormVenda((f) => ({ ...f, observacoes: e.target.value }))
                   }
+                  rows={3}
+                  placeholder="Adicione qualquer observação relevante para esta venda..."
                 />
-                <input
-                  type="text"
-                  placeholder="Medida"
-                  className="border-gray-300 rounded-md shadow-sm bg-gray-100 w-full"
-                  value={novoItem.tipo_medida || ""}
-                  disabled
-                />
-                <input
-                  type="text"
-                  placeholder="Preço Venda"
-                  className="border-gray-300 rounded-md shadow-sm bg-gray-100 w-full"
-                  value={
-                    novoItem.valor_unitario !== undefined &&
-                    novoItem.valor_unitario !== null
-                      ? `R$ ${Number(novoItem.valor_unitario).toFixed(2)}`
-                      : ""
-                  }
-                  disabled
-                />
-                <input
-                  type="number"
-                  min={0.01}
-                  step={0.01}
-                  placeholder="Custo"
-                  className="border-gray-300 rounded-md shadow-sm w-full"
-                  value={novoItem.custo ?? ""}
-                  onChange={(e) =>
-                    setNovoItem((i) => ({
-                      ...i,
-                      custo:
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
-                    }))
-                  }
-                />
+              </div>
+              {erroForm && (
+                <div className="text-red-700 bg-red-100 p-4 rounded-lg text-sm font-medium">
+                  {erroForm}
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <Button
                   type="button"
-                  onClick={adicionarItem}
-                  className="w-full"
+                  variant="outline"
+                  onClick={() => setAbrirModal(false)}
                 >
-                  Adicionar
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+                  disabled={salvando}
+                >
+                  {salvando ? "Salvando..." : "Salvar Venda"}
                 </Button>
               </div>
-              <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="p-2 text-left font-medium text-gray-600">
-                        Produto
-                      </th>
-                      <th className="p-2 text-center font-medium text-gray-600">
-                        Qtd
-                      </th>
-                      <th className="p-2 text-center font-medium text-gray-600">
-                        Vl. Unit.
-                      </th>
-                      <th className="p-2 text-right font-medium text-gray-600">
-                        Total
-                      </th>
-                      <th className="p-2"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {formVenda.itens.map((item, idx) => {
-                      const prod = produtos.find(
-                        (p) => p.id === item.produto_id
-                      );
-                      const totalItem =
-                        (item.quantidade ?? 0) * (item.valor_unitario ?? 0);
-                      return (
-                        <tr key={idx} className="border-t">
-                          <td className="p-2">
-                            {prod?.nome || item.produto_id}
-                          </td>
-                          <td className="p-2 text-center">
-                            {item.quantidade} {item.tipo_medida}
-                          </td>
-                          <td className="p-2 text-center">
-                            R$ {Number(item.valor_unitario).toFixed(2)}
-                          </td>
-                          <td className="p-2 text-right font-medium">
-                            R$ {totalItem.toFixed(2)}
-                          </td>
-                          <td className="p-2 text-center">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="danger"
-                              onClick={() => removerItem(idx)}
-                            >
-                              X
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Observações
-              </label>
-              <textarea
-                className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                value={formVenda.observacoes}
-                onChange={(e) =>
-                  setFormVenda((f) => ({ ...f, observacoes: e.target.value }))
-                }
-                rows={3}
-                placeholder="Adicione qualquer observação relevante para esta venda..."
-              />
-            </div>
-            {erroForm && (
-              <div className="text-red-600 bg-red-50 p-3 rounded-md text-sm">
-                {erroForm}
-              </div>
-            )}
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setAbrirModal(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={salvando}>
-                {salvando ? "Salvando..." : "Salvar Venda"}
-              </Button>
-            </div>
-          </form>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
