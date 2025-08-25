@@ -34,6 +34,7 @@ import {
   ShoppingCart,
   Users,
   XCircle,
+  FileText,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -483,7 +484,11 @@ export default function DashboardPage() {
             label="Clientes"
             to="/clientes"
           />
-          {/* <QuickLink icon={<Box size={28} />} label="Estoque" to="/estoque" /> */}
+          <QuickLink
+            icon={<FileText size={28} />}
+            label="Relatórios"
+            to="/relatorios"
+          />
         </div>
       </div>
     </div>
